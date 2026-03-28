@@ -59,8 +59,11 @@ class Evaluator:
         num_workers = self.config.num_workers
 
         # Collect entries to run
+        allowed_repos = self.config.repos
         entries = []
         for entry in self.dataset:
+            if allowed_repos and entry.repo not in allowed_repos:
+                continue
             if 0 < limit <= len(entries):
                 break
             entries.append(entry)

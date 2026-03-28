@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Dict, Set, Iterator, Callable
+from typing import List, Dict, Set, Iterator, Callable, Optional
 
 
 # ============================================================
@@ -29,6 +29,7 @@ class EvaluationConfig:
     timeout_per_cve: int = 300
     max_cves: int = 0  # 0 means no limit
     num_workers: int = 1  # number of parallel workers
+    repos: Optional[List[str]] = None  # None means all repos, e.g. ["curl", "openssl"]
 
 
 # ============================================================

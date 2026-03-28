@@ -10,6 +10,9 @@ def main():
         output_dir="data/reports",
         max_cves=0,  # 0 = no limit
         num_workers=10,  # parallel workers, 1 = sequential
+        # repos=None,  # None = all repos
+        # repos=["FFmpeg", "ImageMagick", "curl", "httpd", "linux", "openjpeg", "openssl", "qemu", "wireshark"],
+        repos=["FFmpeg", "ImageMagick", "curl", "httpd", "openjpeg", "openssl", "qemu", "wireshark"],
     )
     evaluator = Evaluator(config, tool=analyze)
 

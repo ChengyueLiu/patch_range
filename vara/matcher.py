@@ -3,8 +3,8 @@
 Strategy for maximum recall:
 A version is considered affected if ANY of these conditions hold for ANY patched file:
   1. At least one deleted line (vulnerable code) is found in the file
-  2. At least one added line (fix code) is NOT found in the file
-  3. The file does not exist (if it was modified, not newly created)
+  2. At least one added line (fix code) is NOT found near the expected context
+  3. The patched file does not exist in this version (path changed beyond recognition)
 
 This is intentionally loose to maximize recall. Precision will be addressed in phase 2.
 """
@@ -12,15 +12,69 @@ This is intentionally loose to maximize recall. Precision will be addressed in p
 from __future__ import annotations
 
 import re
-from typing import List
+from typing import List, Optional
 
-from vara.interface import PatchInfo, FilePatch, VersionResult, FileMatchResult
+from vara.interface import PatchInfo, FilePatch, HunkChange, VersionResult, FileMatchResult
 from vara.repo import GitRepo
 
 
 def normalize(line: str) -> str:
     """Normalize a line for fuzzy comparison: collapse whitespace, strip."""
     return re.sub(r'\s+', ' ', line.strip())
+
+
+def _find_context_region(
+    content_lines: List[str],
+    context_lines: List[str],
+) -> Optional[int]:
+    """Find where a hunk's context lines appear in the file.
+
+    Returns the line index where the best context match starts, or None.
+    """
+    if not context_lines:
+        return None
+
+    norm_content = [normalize(l) for l in content_lines]
+    norm_context = [normalize(l) for l in context_lines if normalize(l)]
+
+    if not norm_context:
+        return None
+
+    target = norm_context[0]
+    best_idx = None
+    best_score = 0
+
+    for i, line in enumerate(norm_content):
+        if line == target:
+            score = 1
+            for j, ctx in enumerate(norm_context[1:], 1):
+                if i + j < len(norm_content) and norm_content[i + j] == ctx:
+                    score += 1
+                else:
+                    break
+            if score > best_score:
+                best_score = score
+                best_idx = i
+
+    return best_idx
+
+
+def _check_lines_in_region(
+    content_lines: List[str],
+    target_lines: List[str],
+    region_start: int,
+    region_size: int = 30,
+) -> int:
+    """Check how many target lines appear in a region of the file."""
+    start = max(0, region_start - region_size)
+    end = min(len(content_lines), region_start + region_size)
+    region_set = set(normalize(l) for l in content_lines[start:end])
+
+    found = 0
+    for line in target_lines:
+        if normalize(line) in region_set:
+            found += 1
+    return found
 
 
 def match_file_against_version(
@@ -31,8 +85,7 @@ def match_file_against_version(
     """Check if a single file in a version shows signs of the vulnerability."""
     file_path = file_patch.old_path or file_patch.new_path
 
-    # File was newly added in the fix → older versions won't have it,
-    # but that doesn't mean they're affected by this file
+    # File was newly added in the fix → not relevant for vulnerability
     if file_patch.old_path is None:
         return FileMatchResult(
             file_path=file_path,
@@ -43,38 +96,32 @@ def match_file_against_version(
             fix_lines_total=0,
         )
 
-    content = repo.get_file_at_version(tag, file_path)
+    content = repo.find_file_at_version(tag, file_path)
+    deleted_lines = file_patch.all_deleted_lines
+    added_lines = file_patch.all_added_lines
 
-    # File doesn't exist in this version
+    # File doesn't exist in this version at all → assume affected for recall
     if content is None:
-        deleted_lines = file_patch.all_deleted_lines
-        added_lines = file_patch.all_added_lines
         return FileMatchResult(
             file_path=file_path,
             found=False,
             vulnerable_lines_matched=0,
             vulnerable_lines_total=len(deleted_lines),
-            fix_lines_absent=0,
+            fix_lines_absent=len(added_lines),
             fix_lines_total=len(added_lines),
         )
 
-    normalized_content_lines = [normalize(l) for l in content.splitlines()]
-    content_set = set(normalized_content_lines)
+    content_lines = content.splitlines()
+    content_norm_set = set(normalize(l) for l in content_lines)
 
-    deleted_lines = file_patch.all_deleted_lines
-    added_lines = file_patch.all_added_lines
-
-    # Count how many vulnerable (deleted) lines appear in this version
+    # Count deleted (vulnerable) lines present anywhere in the file
     vuln_matched = 0
     for line in deleted_lines:
-        if normalize(line) in content_set:
+        if normalize(line) in content_norm_set:
             vuln_matched += 1
 
-    # Count how many fix (added) lines are absent from this version
-    fix_absent = 0
-    for line in added_lines:
-        if normalize(line) not in content_set:
-            fix_absent += 1
+    # Count added (fix) lines absent using context-aware matching
+    fix_absent = _count_fix_absent(content_lines, content_norm_set, file_patch.hunks)
 
     return FileMatchResult(
         file_path=file_path,
@@ -86,15 +133,39 @@ def match_file_against_version(
     )
 
 
-def is_version_affected(file_results: List[FileMatchResult]) -> bool:
-    """Decide if a version is affected based on file match results.
+def _count_fix_absent(
+    content_lines: List[str],
+    content_norm_set: set,
+    hunks: List[HunkChange],
+) -> int:
+    """Count how many added lines are absent, using context to locate the right region."""
+    total_absent = 0
 
-    High-recall strategy: affected if ANY file shows vulnerability indicators.
-    A file indicates vulnerability if:
-      - Any deleted (vulnerable) line is present, OR
-      - Any added (fix) line is absent
-    """
+    for hunk in hunks:
+        if not hunk.added_lines:
+            continue
+
+        region_idx = _find_context_region(content_lines, hunk.context_lines)
+
+        if region_idx is not None:
+            found_in_region = _check_lines_in_region(
+                content_lines, hunk.added_lines, region_idx,
+            )
+            total_absent += len(hunk.added_lines) - found_in_region
+        else:
+            for line in hunk.added_lines:
+                if normalize(line) not in content_norm_set:
+                    total_absent += 1
+
+    return total_absent
+
+
+def is_version_affected(file_results: List[FileMatchResult]) -> bool:
+    """Decide if a version is affected based on file match results."""
     for fr in file_results:
+        # File not found but was expected → assume affected
+        if not fr.found and (fr.vulnerable_lines_total > 0 or fr.fix_lines_total > 0):
+            return True
         if not fr.found:
             continue
         if fr.vulnerable_lines_matched > 0:
