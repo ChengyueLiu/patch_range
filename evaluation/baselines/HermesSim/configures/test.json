@@ -1,0 +1,10 @@
+{
+    "common": {
+        "args": {
+            "test_outdir": "last"
+        }
+    },
+    "sog_0": {
+        "is_testing": true
+    }
+}

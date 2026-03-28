@@ -1,0 +1,189 @@
+[32m2025-01-16 15:47:56[0m [1;30mINFO::[0m Remain 0 files to test
+[32m2025-01-16 15:47:56[0m [1;30mINFO::[0m Running model training
+[32m2025-01-16 15:47:56[0m [1;30mINFO::[0m Batch size (training): 512
+[32m2025-01-16 15:51:32[0m [1;30mINFO::[0m Removing 5833 funcs because of different locs.
+[32m2025-01-16 15:51:32[0m [1;30mINFO::[0m Removing 104 unique funcs because of different locs.
+[32m2025-01-16 15:51:32[0m [1;30mINFO::[0m Found 21089 pairable functions
+[32m2025-01-16 15:51:32[0m [1;30mINFO::[0m 21089 among them more than 2 variants
+[32m2025-01-16 15:52:12[0m [1;30mINFO::[0m Tot num func pairs (training): 80000
+[32m2025-01-16 15:52:12[0m [1;30mINFO::[0m Num batches in epoch (training): 156
+[32m2025-01-16 15:52:12[0m [1;30mINFO::[0m Tot num func pairs per epoch (training): 79872
+[32m2025-01-16 15:52:12[0m [1;30mINFO::[0m Batch size (validation): 512
+[32m2025-01-16 15:52:52[0m [1;30mINFO::[0m Tot num func pairs (validation): 2836
+[32m2025-01-16 15:52:52[0m [1;30mINFO::[0m Num batches (validation): 6
+[32m2025-01-16 15:52:54[0m [1;30mINFO::[0m Starting model training!
+[32m2025-01-16 15:52:54[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 15:53:46[0m [1;30mINFO::[0m Remain 0 files to test
+[32m2025-01-16 15:53:46[0m [1;30mINFO::[0m Running model training
+[32m2025-01-16 15:53:46[0m [1;30mINFO::[0m Batch size (training): 512
+[32m2025-01-16 15:57:22[0m [1;30mINFO::[0m Removing 5833 funcs because of different locs.
+[32m2025-01-16 15:57:22[0m [1;30mINFO::[0m Removing 104 unique funcs because of different locs.
+[32m2025-01-16 15:57:22[0m [1;30mINFO::[0m Found 21089 pairable functions
+[32m2025-01-16 15:57:22[0m [1;30mINFO::[0m 21089 among them more than 2 variants
+[32m2025-01-16 15:58:02[0m [1;30mINFO::[0m Tot num func pairs (training): 80000
+[32m2025-01-16 15:58:02[0m [1;30mINFO::[0m Num batches in epoch (training): 156
+[32m2025-01-16 15:58:02[0m [1;30mINFO::[0m Tot num func pairs per epoch (training): 79872
+[32m2025-01-16 15:58:02[0m [1;30mINFO::[0m Batch size (validation): 512
+[32m2025-01-16 15:58:42[0m [1;30mINFO::[0m Tot num func pairs (validation): 2836
+[32m2025-01-16 15:58:42[0m [1;30mINFO::[0m Num batches (validation): 6
+[32m2025-01-16 15:58:43[0m [1;30mINFO::[0m Starting model training!
+[32m2025-01-16 15:58:43[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 15:58:49[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 15:58:50[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.7713
+[32m2025-01-16 15:58:50[0m [1;30mINFO::[0m Epoch 0
+[32m2025-01-16 15:58:50[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 16:01:11[0m [1;30mINFO::[0m Iter 100,  loss 421.2062,  regularized_loss 421.2062,  norms 4.8203, time 148.06s
+[32m2025-01-16 16:02:30[0m [1;30mINFO::[0m End of Epoch 0 (elapsed_time 148.06s)
+[32m2025-01-16 16:02:30[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 16:02:35[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 16:02:36[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.7717
+[32m2025-01-16 16:02:36[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.7717[0m
+[32m2025-01-16 16:02:37[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 16:02:37[0m [1;30mINFO::[0m Epoch 1
+[32m2025-01-16 16:02:37[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 16:03:40[0m [1;30mINFO::[0m Iter 200,  loss 349.8287,  regularized_loss 349.8287,  norms 4.9094, time 296.41s
+[32m2025-01-16 16:06:01[0m [1;30mINFO::[0m Iter 300,  loss 339.7141,  regularized_loss 339.7141,  norms 4.9672, time 437.76s
+[32m2025-01-16 16:06:18[0m [1;30mINFO::[0m End of Epoch 1 (elapsed_time 437.76s)
+[32m2025-01-16 16:06:18[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 16:06:22[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 16:06:24[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.8074
+[32m2025-01-16 16:06:24[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.8074[0m
+[32m2025-01-16 16:06:24[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 16:06:24[0m [1;30mINFO::[0m Epoch 2
+[32m2025-01-16 16:06:24[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 16:08:25[0m [1;30mINFO::[0m Iter 400,  loss 337.2438,  regularized_loss 337.2438,  norms 5.0181, time 581.97s
+[32m2025-01-16 16:10:02[0m [1;30mINFO::[0m End of Epoch 2 (elapsed_time 581.97s)
+[32m2025-01-16 16:10:02[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 16:10:06[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 16:10:08[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.8372
+[32m2025-01-16 16:10:08[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.8372[0m
+[32m2025-01-16 16:10:08[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 16:10:08[0m [1;30mINFO::[0m Epoch 3
+[32m2025-01-16 16:10:08[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 16:10:53[0m [1;30mINFO::[0m Iter 500,  loss 328.9487,  regularized_loss 328.9487,  norms 5.0678, time 729.38s
+[32m2025-01-16 16:13:14[0m [1;30mINFO::[0m Iter 600,  loss 328.4232,  regularized_loss 328.4232,  norms 5.1191, time 870.31s
+[32m2025-01-16 16:13:46[0m [1;30mINFO::[0m End of Epoch 3 (elapsed_time 870.31s)
+[32m2025-01-16 16:13:46[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 16:13:49[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 16:13:51[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.8576
+[32m2025-01-16 16:13:51[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.8576[0m
+[32m2025-01-16 16:13:51[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 16:13:51[0m [1;30mINFO::[0m Epoch 4
+[32m2025-01-16 16:13:51[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 16:15:38[0m [1;30mINFO::[0m Iter 700,  loss 326.9624,  regularized_loss 326.9624,  norms 5.1648, time 1014.67s
+[32m2025-01-16 16:17:29[0m [1;30mINFO::[0m End of Epoch 4 (elapsed_time 1014.67s)
+[32m2025-01-16 16:17:29[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 16:17:32[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 16:17:34[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.8717
+[32m2025-01-16 16:17:34[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.8717[0m
+[32m2025-01-16 16:17:34[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 21:20:53[0m [1;30mINFO::[0m Remain 3696 files to test
+[32m2025-01-16 21:20:53[0m [1;30mINFO::[0m Running model training
+[32m2025-01-16 21:20:53[0m [1;30mINFO::[0m Batch size (training): 512
+[32m2025-01-16 21:24:29[0m [1;30mINFO::[0m Removing 5833 funcs because of different locs.
+[32m2025-01-16 21:24:29[0m [1;30mINFO::[0m Removing 104 unique funcs because of different locs.
+[32m2025-01-16 21:24:29[0m [1;30mINFO::[0m Found 21089 pairable functions
+[32m2025-01-16 21:24:29[0m [1;30mINFO::[0m 21089 among them more than 2 variants
+[32m2025-01-16 21:42:12[0m [1;30mINFO::[0m Tot num func pairs (training): 80000
+[32m2025-01-16 21:42:12[0m [1;30mINFO::[0m Num batches in epoch (training): 156
+[32m2025-01-16 21:42:12[0m [1;30mINFO::[0m Tot num func pairs per epoch (training): 79872
+[32m2025-01-16 21:42:12[0m [1;30mINFO::[0m Batch size (validation): 512
+[32m2025-01-16 21:48:51[0m [1;30mINFO::[0m Tot num func pairs (validation): 2836
+[32m2025-01-16 21:48:51[0m [1;30mINFO::[0m Num batches (validation): 6
+[32m2025-01-16 21:48:53[0m [1;30mINFO::[0m Starting model training!
+[32m2025-01-16 21:48:53[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 21:50:50[0m [1;30mINFO::[0m Remain 3696 files to test
+[32m2025-01-16 21:50:50[0m [1;30mINFO::[0m Running model training
+[32m2025-01-16 21:50:50[0m [1;30mINFO::[0m Batch size (training): 512
+[32m2025-01-16 21:54:27[0m [1;30mINFO::[0m Removing 5833 funcs because of different locs.
+[32m2025-01-16 21:54:27[0m [1;30mINFO::[0m Removing 104 unique funcs because of different locs.
+[32m2025-01-16 21:54:27[0m [1;30mINFO::[0m Found 21089 pairable functions
+[32m2025-01-16 21:54:27[0m [1;30mINFO::[0m 21089 among them more than 2 variants
+[32m2025-01-16 21:55:07[0m [1;30mINFO::[0m Tot num func pairs (training): 80000
+[32m2025-01-16 21:55:07[0m [1;30mINFO::[0m Num batches in epoch (training): 156
+[32m2025-01-16 21:55:07[0m [1;30mINFO::[0m Tot num func pairs per epoch (training): 79872
+[32m2025-01-16 21:55:07[0m [1;30mINFO::[0m Batch size (validation): 512
+[32m2025-01-16 21:55:50[0m [1;30mINFO::[0m Tot num func pairs (validation): 2836
+[32m2025-01-16 21:55:50[0m [1;30mINFO::[0m Num batches (validation): 6
+[32m2025-01-16 21:55:51[0m [1;30mINFO::[0m Starting model training!
+[32m2025-01-16 21:55:51[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 21:55:57[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 21:55:58[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.7713
+[32m2025-01-16 21:55:58[0m [1;30mINFO::[0m Epoch 0
+[32m2025-01-16 21:55:58[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 21:58:24[0m [1;30mINFO::[0m Iter 100,  loss 421.2062,  regularized_loss 421.2062,  norms 4.8203, time 152.18s
+[32m2025-01-16 21:59:41[0m [1;30mINFO::[0m End of Epoch 0 (elapsed_time 152.18s)
+[32m2025-01-16 21:59:41[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 21:59:46[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 21:59:47[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.7717
+[32m2025-01-16 21:59:47[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.7717[0m
+[32m2025-01-16 21:59:48[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 21:59:48[0m [1;30mINFO::[0m Epoch 1
+[32m2025-01-16 21:59:48[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 22:00:49[0m [1;30mINFO::[0m Iter 200,  loss 349.8287,  regularized_loss 349.8287,  norms 4.9094, time 297.17s
+[32m2025-01-16 22:03:05[0m [1;30mINFO::[0m Iter 300,  loss 339.7141,  regularized_loss 339.7141,  norms 4.9672, time 433.35s
+[32m2025-01-16 22:03:21[0m [1;30mINFO::[0m End of Epoch 1 (elapsed_time 433.35s)
+[32m2025-01-16 22:03:21[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 22:03:25[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 22:03:26[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.8074
+[32m2025-01-16 22:03:26[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.8074[0m
+[32m2025-01-16 22:03:27[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 22:03:27[0m [1;30mINFO::[0m Epoch 2
+[32m2025-01-16 22:03:27[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 22:05:25[0m [1;30mINFO::[0m Iter 400,  loss 337.2438,  regularized_loss 337.2438,  norms 5.0181, time 573.94s
+[32m2025-01-16 22:06:58[0m [1;30mINFO::[0m End of Epoch 2 (elapsed_time 573.94s)
+[32m2025-01-16 22:06:58[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 22:07:02[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 22:07:04[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.8372
+[32m2025-01-16 22:07:04[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.8372[0m
+[32m2025-01-16 22:07:04[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 22:07:04[0m [1;30mINFO::[0m Epoch 3
+[32m2025-01-16 22:07:04[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 22:07:46[0m [1;30mINFO::[0m Iter 500,  loss 328.9487,  regularized_loss 328.9487,  norms 5.0678, time 714.97s
+[32m2025-01-16 22:10:05[0m [1;30mINFO::[0m Iter 600,  loss 328.4232,  regularized_loss 328.4232,  norms 5.1191, time 853.71s
+[32m2025-01-16 22:10:37[0m [1;30mINFO::[0m End of Epoch 3 (elapsed_time 853.71s)
+[32m2025-01-16 22:10:37[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 22:10:41[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 22:10:43[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.8576
+[32m2025-01-16 22:10:43[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.8576[0m
+[32m2025-01-16 22:10:43[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 22:10:43[0m [1;30mINFO::[0m Epoch 4
+[32m2025-01-16 22:10:43[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 22:12:26[0m [1;30mINFO::[0m Iter 700,  loss 326.9624,  regularized_loss 326.9624,  norms 5.1648, time 994.94s
+[32m2025-01-16 22:14:16[0m [1;30mINFO::[0m End of Epoch 4 (elapsed_time 994.94s)
+[32m2025-01-16 22:14:16[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 22:14:19[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 22:14:21[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.8717
+[32m2025-01-16 22:14:21[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.8717[0m
+[32m2025-01-16 22:14:21[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 22:14:21[0m [1;30mINFO::[0m Epoch 5
+[32m2025-01-16 22:14:21[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 22:14:48[0m [1;30mINFO::[0m Iter 800,  loss 322.8843,  regularized_loss 322.8843,  norms 5.2049, time 1136.85s
+[32m2025-01-16 22:17:03[0m [1;30mINFO::[0m Iter 900,  loss 320.7668,  regularized_loss 320.7668,  norms 5.2419, time 1271.31s
+[32m2025-01-16 22:17:52[0m [1;30mINFO::[0m End of Epoch 5 (elapsed_time 1271.31s)
+[32m2025-01-16 22:17:52[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 22:17:54[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 22:17:57[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.8822
+[32m2025-01-16 22:17:57[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.8822[0m
+[32m2025-01-16 22:17:57[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 22:17:57[0m [1;30mINFO::[0m Epoch 6
+[32m2025-01-16 22:17:57[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 22:19:25[0m [1;30mINFO::[0m Iter 1000,  loss 320.4116,  regularized_loss 320.4116,  norms 5.2741, time 1413.60s
+[32m2025-01-16 22:21:30[0m [1;30mINFO::[0m End of Epoch 6 (elapsed_time 1413.60s)
+[32m2025-01-16 22:21:30[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 22:21:32[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 22:21:36[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.8903
+[32m2025-01-16 22:21:36[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.8903[0m
+[32m2025-01-16 22:21:36[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 22:21:36[0m [1;30mINFO::[0m Epoch 7
+[32m2025-01-16 22:21:36[0m [1;30mINFO::[0m Re-initializing the pair generation
+[32m2025-01-16 22:21:47[0m [1;30mINFO::[0m Iter 1100,  loss 321.0678,  regularized_loss 321.0678,  norms 5.3102, time 1555.41s
+[32m2025-01-16 22:24:03[0m [1;30mINFO::[0m Iter 1200,  loss 321.6451,  regularized_loss 321.6451,  norms 5.3431, time 1691.44s
+[32m2025-01-16 22:25:08[0m [1;30mINFO::[0m End of Epoch 7 (elapsed_time 1691.44s)
+[32m2025-01-16 22:25:08[0m [1;30mINFO::[0m Validation set
+[32m2025-01-16 22:25:09[0m [1;30mINFO::[0m (Re-)initializing the iterators
+[32m2025-01-16 22:25:13[0m [1;30mINFO::[0m pair_auc (avg over batches): 0.8969
+[32m2025-01-16 22:25:13[0m [1;30mWARNING::[0m [33mbest_val_auc: 0.8969[0m
+[32m2025-01-16 22:25:13[0m [1;30mINFO::[0m Model saved: ./model_checkpoint_2025-01-16/s2v-annotations
+[32m2025-01-16 22:25:13[0m [1;30mINFO::[0m Epoch 8
+[32m2025-01-16 22:25:13[0m [1;30mINFO::[0m Re-initializing the pair generation

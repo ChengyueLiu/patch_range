@@ -1,0 +1,25 @@
+# Cloned repositories
+data/repos/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Evaluation outputs
+evaluation/results/
+evaluation/reports/
