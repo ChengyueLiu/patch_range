@@ -21,5 +21,4 @@ venv/
 Thumbs.db
 
 # Evaluation outputs
-evaluation/results/
-evaluation/reports/
+data/reports/
