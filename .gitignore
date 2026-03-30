@@ -22,3 +22,6 @@ Thumbs.db
 
 # Evaluation outputs
 data/reports/
+
+# Git operation cache
+data/cache/

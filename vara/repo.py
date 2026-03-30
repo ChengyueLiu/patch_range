@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -11,11 +12,16 @@ from typing import List, Optional, Dict, Set
 class GitRepo:
     """Wrapper for git operations on a local repository."""
 
-    def __init__(self, repo_path: str):
+    def __init__(self, repo_path: str, cache_dir: str = "data/cache"):
         self.path = Path(repo_path).resolve()
         self._file_list_cache: Dict[str, List[str]] = {}
-        self._tag_commit_cache: Optional[Dict[str, str]] = None  # tag -> commit hash
-        self._tags_containing_cache: Dict[str, Set[str]] = {}  # commit -> set of tags
+        self._tag_commit_cache: Optional[Dict[str, str]] = None
+        self._tags_containing_cache: Dict[str, Set[str]] = {}
+
+        # Disk cache for tags_containing
+        repo_name = self.path.name
+        self._disk_cache_path = Path(cache_dir) / repo_name / "tags_containing.json"
+        self._load_disk_cache()
 
     def _run(self, args: List[str], check: bool = True) -> str:
         result = subprocess.run(
@@ -43,6 +49,53 @@ class GitRepo:
             return self._run(["show", f"{tag}:{file_path}"], check=True)
         except subprocess.CalledProcessError:
             return None
+
+    def batch_get_files(self, requests: List[tuple]) -> Dict[tuple, Optional[str]]:
+        """Batch read multiple (tag, file_path) pairs in one git process.
+
+        Uses `git cat-file --batch` for efficiency.
+        Returns dict of (tag, file_path) -> content or None.
+        """
+        if not requests:
+            return {}
+
+        proc = subprocess.Popen(
+            ["git", "cat-file", "--batch"],
+            cwd=str(self.path),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        results = {}
+        # Feed all requests
+        input_data = "\n".join(f"{tag}:{path}" for tag, path in requests) + "\n"
+        stdout, _ = proc.communicate(input_data.encode("utf-8"))
+
+        # Parse output
+        pos = 0
+        data = stdout
+        for tag, path in requests:
+            # Each response is either:
+            #   "<object> <type> <size>\n<content>\n"
+            # or:
+            #   "<ref> missing\n"
+            line_end = data.index(b"\n", pos)
+            header = data[pos:line_end].decode("utf-8", errors="replace")
+
+            if header.endswith("missing"):
+                results[(tag, path)] = None
+                pos = line_end + 1
+            else:
+                parts = header.split()
+                size = int(parts[2])
+                content_start = line_end + 1
+                content_end = content_start + size
+                content = data[content_start:content_end].decode("utf-8", errors="replace")
+                results[(tag, path)] = content
+                pos = content_end + 1  # skip trailing newline
+
+        return results
 
     def find_file_at_version(self, tag: str, file_path: str) -> Optional[str]:
         """Find a file at a version, trying the original path first, then searching by filename.
@@ -120,7 +173,7 @@ class GitRepo:
         return self._tag_commit_cache
 
     def tags_containing(self, commit: str) -> Set[str]:
-        """Get all tags that contain the given commit (cached)."""
+        """Get all tags that contain the given commit (memory + disk cached)."""
         if commit in self._tags_containing_cache:
             return self._tags_containing_cache[commit]
 
@@ -131,4 +184,31 @@ class GitRepo:
             result = set()
 
         self._tags_containing_cache[commit] = result
+        self._disk_cache_dirty = True
         return result
+
+    def flush_cache(self):
+        """Write cache to disk if there are new entries."""
+        if getattr(self, '_disk_cache_dirty', False):
+            self._save_disk_cache()
+            self._disk_cache_dirty = False
+
+    def _load_disk_cache(self):
+        """Load tags_containing cache from disk."""
+        if self._disk_cache_path.exists():
+            try:
+                with open(self._disk_cache_path) as f:
+                    data = json.load(f)
+                self._tags_containing_cache = {k: set(v) for k, v in data.items()}
+            except (json.JSONDecodeError, IOError):
+                self._tags_containing_cache = {}
+
+    def _save_disk_cache(self):
+        """Save tags_containing cache to disk."""
+        self._disk_cache_path.parent.mkdir(parents=True, exist_ok=True)
+        data = {k: sorted(v) for k, v in self._tags_containing_cache.items()}
+        try:
+            with open(self._disk_cache_path, "w") as f:
+                json.dump(data, f)
+        except IOError:
+            pass

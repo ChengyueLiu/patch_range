@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
-from evaluation.interface import Dataset
+from evaluation.interface import Dataset, CVEEntry
 from vara.repo import GitRepo
 from vara.patch_parser import parse_commits
 from pipeline.core import run_pipeline, PipelineResult
@@ -14,48 +15,62 @@ from tqdm import tqdm
 
 
 # ---- Configuration ----
-DATASET_PATH = "evaluation/benchmark/Dataset.json"
+DATASET_PATH = "evaluation/benchmark/Dataset_amended.json"
 REPOS_DIR = "data/repos"
 # repos=None,  # None = all repos
 # repos=["FFmpeg", "ImageMagick", "curl", "httpd", "linux", "openjpeg", "openssl", "qemu", "wireshark"],
-REPOS = ["curl", "openssl"]
-MAX_CVES = 0  # 0 = no limit
-
-# ---- Repo cache ----
-_repo_cache: Dict[str, GitRepo] = {}
+REPOS = ["FFmpeg", "ImageMagick", "curl", "httpd", "openjpeg", "openssl", "qemu", "wireshark"]
+MAX_CVES = 0  # 0 = no limit, per repo
+NUM_WORKERS = 12  # parallel workers, 1 = sequential
 
 
-def get_repo(repo_path: str) -> GitRepo:
-    if repo_path not in _repo_cache:
-        _repo_cache[repo_path] = GitRepo(repo_path)
-    return _repo_cache[repo_path]
+def _run_single(args: Tuple) -> PipelineResult:
+    """Worker function for parallel execution."""
+    repos_dir, cve_id, repo_name, all_commits, affected_versions = args
+    repo = GitRepo(str(Path(repos_dir) / repo_name))
+    patch = parse_commits(repo, all_commits)
+    if not patch.file_patches:
+        return None
+    result = run_pipeline(repo, patch, cve_id, repo_name, affected_versions)
+    repo.flush_cache()
+    return result
 
 
 def main():
     dataset = Dataset.load(DATASET_PATH)
-    repos_dir = Path(REPOS_DIR)
 
-    # Collect entries
+    # Collect entries (max per repo)
     entries = []
+    repo_count = defaultdict(int)
     for entry in dataset:
         if REPOS and entry.repo not in REPOS:
             continue
+        if MAX_CVES > 0 and repo_count[entry.repo] >= MAX_CVES:
+            continue
         entries.append(entry)
-        if 0 < MAX_CVES <= len(entries):
-            break
+        repo_count[entry.repo] += 1
 
-    # Run pipeline per CVE
+    # Build worker args
+    worker_args = [
+        (REPOS_DIR, e.cve_id, e.repo, e.all_commits, e.affected_versions)
+        for e in entries
+    ]
+
+    # Run pipeline
     repo_results: Dict[str, List[PipelineResult]] = defaultdict(list)
 
-    for entry in tqdm(entries, desc="Pipeline", unit="CVE"):
-        repo = get_repo(str(repos_dir / entry.repo))
-        patch = parse_commits(repo, entry.all_commits)
-
-        if not patch.file_patches:
-            continue
-
-        result = run_pipeline(repo, patch, entry.cve_id, entry.repo, entry.affected_versions)
-        repo_results[entry.repo].append(result)
+    if NUM_WORKERS <= 1:
+        for args in tqdm(worker_args, desc="Pipeline", unit="CVE"):
+            result = _run_single(args)
+            if result:
+                repo_results[result.repo].append(result)
+    else:
+        with ProcessPoolExecutor(max_workers=NUM_WORKERS) as executor:
+            futures = {executor.submit(_run_single, args): args for args in worker_args}
+            for future in tqdm(as_completed(futures), total=len(futures), desc="Pipeline", unit="CVE"):
+                result = future.result()
+                if result:
+                    repo_results[result.repo].append(result)
 
     # Print results
     print()
@@ -85,7 +100,6 @@ def main():
         avg_states = s('unique_states') // n
         avg_gt = s('ground_truth') // n
 
-        # Coverage: what % of GT is covered by each layer
         total_gt = s('ground_truth')
         l1_cov = s('gt_covered_by_layer1') / total_gt * 100 if total_gt > 0 else 0
         l2_cov = s('gt_covered_by_layer2') / total_gt * 100 if total_gt > 0 else 0

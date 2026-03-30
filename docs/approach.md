@@ -28,26 +28,21 @@
 
 **操作**：
 
-通过两种方式追溯代码最早出现的时间，取更早的那个：
+对每个 release tag，用 `git grep` 检查漏洞代码（patch 中的 deleted lines）是否存在于该版本的代码树中。存在则纳入候选范围。然后排除包含 fixing commit 的版本。
 
-1. **文件追溯**：`git log --follow --diff-filter=A -- <file>` 找到相关文件第一次引入的 commit
-2. **代码模式追溯**：`git log -S"<deleted_line>"` 搜索 patch 中被删除的代码行在仓库中第一次出现的 commit
+**关键设计决策及演进**：
 
-然后：
-- `git tag --contains 最早commit` 得到所有包含该 commit 的版本
-- `git tag --contains fixing_commit` 得到已修复的版本，排除
+实验过程中发现了五个影响 Layer 1 正确性和性能的关键问题，逐步驱动了方案的演进：
 
-**为什么需要两种追溯方式**：
+**发现 1：跨文件代码迁移**。实际项目中代码经常从一个文件迁移到另一个文件（函数拆分、模块重构）。例如 curl 项目中 `lib/ssh.c` 的 SCP 路径处理代码迁移到 `lib/curl_path.c`，`lib/url.c` 的选项设置代码迁移到 `lib/setopt.c`。`git log --follow` 只能追踪文件级重命名（`git mv`），`git blame -C` 在代码被修改后也无法穿透。仅用文件追溯导致 curl 项目 6 个 CVE 漏报 282 个 GT 版本。
 
-实际项目中，代码经常从一个文件迁移到另一个文件（函数拆分、模块重构）。例如 curl 项目中：
-- `lib/ssh.c` 中的 SCP 路径处理代码在 2017 年被迁移到 `lib/curl_path.c`
-- `lib/url.c` 中的选项设置代码被迁移到 `lib/setopt.c`
+**发现 2：`git log -S` 性能瓶颈**。`git log -S` 通过搜索代码模式首次出现的 commit 能解决跨文件问题，但需要遍历仓库每一个 commit 的 diff，单次调用在 openssl 上需要 10-25 秒，不可接受。
 
-`git log --follow` 只能追踪文件级重命名（`git mv`），无法追踪跨文件的代码复制/迁移。`git blame -C` 在代码被修改后也无法穿透。因此仅靠文件追溯会将代码引入时间定位到新文件创建时，漏掉旧文件中已存在漏洞代码的版本。
+**发现 3（解决 1 和 2）：定向跨文件检测**。不需要全量搜索。对每个 patched file，先用 `git log --follow`（快速）找到文件引入 commit，然后在该 commit 的 parent 上做一次 `git grep` 检查代码是否在其他文件中已存在。如果存在，说明发生了跨文件迁移，再对旧文件做 `git log --follow`。总共只需 2-3 次 git 调用，总耗时 <1 秒，而 `git log -S` 需要 10-25 秒。
 
-`git log -S"<code_pattern>"` 搜索的是代码内容本身在仓库中出现/消失的 commit，不依赖文件路径，能穿透任意的代码迁移。
+**发现 4：多分支独立引入同一文件**。`git log --follow` 只追踪当前分支（HEAD）的历史。对于多分支并行维护的项目（如 httpd 的 2.4.x 和 trunk），同一文件可能在不同分支上被独立引入（不同的 add commit）。`git log --follow` 只能找到其中一个分支的引入 commit，导致另一个分支的版本全部漏报。例如 httpd 的 `mod_proxy_uwsgi.c` 在 trunk 由 commit A 引入，在 2.4.x 由 commit B 独立引入。`git log --follow` 只找到 A，`git tag --contains A` 不包含 2.4.x 的任何 tag，导致 19 个 GT 版本全部漏报。解决方案：使用 `git log --all` 搜索所有分支上的文件引入 commit。
 
-实验验证：curl 项目中，仅用文件追溯导致 6 个 CVE 的 Layer 1 覆盖率不足（共漏报 282 个 GT 版本）。加入代码模式追溯后可覆盖这些版本。
+**发现 5：多个 fixing commit 的部分修复**。一个 CVE 可能有多个 fixing commit，每个修复漏洞的不同方面。如果某个版本只包含了部分 fixing commit，漏洞仍然存在。但我们的代码用 `减去包含任意一个 fix commit 的 tag` 来排除已修复版本，导致只包含部分修复的版本被错误排除。例如 FFmpeg CVE-2022-48434 有两个 fixing commit，版本 n4.4.3 包含了 commit 1 但不包含 commit 2，GT 标记为仍受影响，但我们错误地排除了它。解决方案：只排除包含**所有** fixing commit 的版本。
 
 ```
 v1.0 --- v1.1 --- v1.2 --- v2.0 --- v2.1 --- v2.2 --- v3.0 --- v3.1
@@ -111,3 +106,35 @@ v1.0 --- v1.1 --- v1.2 --- v2.0 --- v2.1 --- v2.2 --- v3.0 --- v3.1
 | 阶段二 | — | 判断变更点是否引入漏洞 | 精确定位起点 |
 
 阶段一保证不漏，阶段二提高精度。
+
+## 与现有方法的对比及创新点
+
+### 现有方法的范式
+
+**Tracing 类**（VCCFinder, V-SZZ, Lifetime, SEM-SZZ, TC-SZZ, LLM4SZZ）：
+选漏洞语句 → blame 追溯 → 选 introducing commit → 推断版本。每一步用启发式，核心目标是**精确定位引入漏洞的 commit**。
+
+**Matching 类**（ReDeBug, VUDDY, MOVERY, V1SCAN, FIRE, VULTURE）：
+从 patch 提取签名 → 在目标版本匹配。核心目标是**逐版本判断是否包含漏洞特征**。
+
+两类方法都试图一步到位同时解决 recall 和 precision，结果两者都做不好。
+
+### VARA 的创新点
+
+**创新点 1：两阶段 recall-first pipeline（方法论创新）**
+
+现有 12 个工具无一采用"先保证召回、再过滤误报"的策略。它们在每一步的设计中都在 recall 和 precision 之间做权衡（如 blame 的保守策略、匹配的严格条件），导致两者都受限。VARA 将二者解耦：阶段一只管不漏，阶段二只管去误报。这使得每个阶段可以独立优化，避免相互制约。
+
+**创新点 2：追踪文件引入而非漏洞语句（技术创新）**
+
+现有 tracing 工具的核心难题是"哪行代码是漏洞代码"和"哪个 commit 引入了漏洞"——这两个问题都没有确定性答案，只能靠启发式或 LLM 猜测。VARA 回避了这两个问题：不判断哪行代码是漏洞，只追踪**相关文件最早出现的时间**。文件引入时间是 git 历史中的确定性事实，不依赖任何启发式。范围可能偏大，但保证不漏，偏大的部分交给阶段二处理。
+
+**创新点 3：跨文件迁移与跨分支覆盖的完整处理（技术创新）**
+
+现有工具对跨文件和跨分支场景处理不足：
+- 跨文件：`git log --follow` 只追踪文件重命名，无法追踪代码从一个文件迁移到另一个文件。`git blame -C` 在代码被修改后失效。`git log -S` 能追踪但性能不可接受（10-25 秒/次）。
+- 跨分支：大多数工具只分析主分支，V-SZZ 虽支持跨分支但匹配策略简陋。
+
+VARA 的解决方案：
+- 跨文件：在文件引入 commit 的 parent 上做一次定向 `git grep`（<0.1 秒），检测代码是否在其他文件中已存在，如果是则递归追溯旧文件。
+- 跨分支：`git log --all` 搜索所有分支上的文件引入 commit，`git tag --contains` 天然覆盖分支合并。多个 fixing commit 的情况取交集排除（只有全部修复都应用才算已修复）。
