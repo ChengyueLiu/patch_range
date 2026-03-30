@@ -56,6 +56,20 @@ def find_file_introductions(repo: GitRepo, file_path: str) -> List[str]:
     except subprocess.CalledProcessError:
         result = []
 
+    # Fallback: if --diff-filter=A finds nothing (file created via split/copy, not "add"),
+    # use the earliest commit that touches this file
+    if not result:
+        try:
+            output = repo._run(
+                ["log", "--all", "--reverse", "--format=%H", "-1", "--", file_path],
+                check=True,
+            )
+            first = output.strip()
+            if first:
+                result = [first]
+        except subprocess.CalledProcessError:
+            pass
+
     cache[file_path] = result
     return result
 

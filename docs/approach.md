@@ -32,7 +32,7 @@
 
 **关键设计决策及演进**：
 
-实验过程中发现了五个影响 Layer 1 正确性和性能的关键问题，逐步驱动了方案的演进：
+实验过程中发现了八个影响 Layer 1 正确性和性能的关键问题，逐步驱动了方案的演进：
 
 **发现 1：跨文件代码迁移**。实际项目中代码经常从一个文件迁移到另一个文件（函数拆分、模块重构）。例如 curl 项目中 `lib/ssh.c` 的 SCP 路径处理代码迁移到 `lib/curl_path.c`，`lib/url.c` 的选项设置代码迁移到 `lib/setopt.c`。`git log --follow` 只能追踪文件级重命名（`git mv`），`git blame -C` 在代码被修改后也无法穿透。仅用文件追溯导致 curl 项目 6 个 CVE 漏报 282 个 GT 版本。
 
@@ -43,6 +43,20 @@
 **发现 4：多分支独立引入同一文件**。`git log --follow` 只追踪当前分支（HEAD）的历史。对于多分支并行维护的项目（如 httpd 的 2.4.x 和 trunk），同一文件可能在不同分支上被独立引入（不同的 add commit）。`git log --follow` 只能找到其中一个分支的引入 commit，导致另一个分支的版本全部漏报。例如 httpd 的 `mod_proxy_uwsgi.c` 在 trunk 由 commit A 引入，在 2.4.x 由 commit B 独立引入。`git log --follow` 只找到 A，`git tag --contains A` 不包含 2.4.x 的任何 tag，导致 19 个 GT 版本全部漏报。解决方案：使用 `git log --all` 搜索所有分支上的文件引入 commit。
 
 **发现 5：多个 fixing commit 的部分修复**。一个 CVE 可能有多个 fixing commit，每个修复漏洞的不同方面。如果某个版本只包含了部分 fixing commit，漏洞仍然存在。但我们的代码用 `减去包含任意一个 fix commit 的 tag` 来排除已修复版本，导致只包含部分修复的版本被错误排除。例如 FFmpeg CVE-2022-48434 有两个 fixing commit，版本 n4.4.3 包含了 commit 1 但不包含 commit 2，GT 标记为仍受影响，但我们错误地排除了它。解决方案：只排除包含**所有** fixing commit 的版本。
+
+**发现 6：链式跨文件迁移**。代码可能经历多次文件迁移（A.c → B.c → C.c）。一层跨文件检测只能追溯到 B.c，漏掉最早的 A.c。例如 openjpeg 的 `codec/image_to_j2k.c` → `src/bin/jp2/image_to_j2k.c` → `src/bin/jp2/opj_compress.c`。解决方案：递归跨文件追溯，最大深度 3 层。
+
+**发现 7：文件拆分不被 git 识别为 "Add"**。当一个大文件被拆分成多个小文件时（如 FFmpeg 的 `ffmpeg.c` 拆分出 `ffmpeg_opt.c`），git 内部记录为 "Modify" 而非 "Add"。`git log --diff-filter=A` 搜不到这种文件的创建 commit，导致追溯失败。例如 FFmpeg CVE-2020-20451 涉及 `ffmpeg_opt.c`，该文件有 310 个 commit 修改过但 `--diff-filter=A` 返回空。解决方案：当 `--diff-filter=A` 无结果时，用 `git log --reverse -1` 找到最早涉及该文件的 commit 作为兜底。
+
+**发现 8：Benchmark 数据质量问题**。评估过程中发现 benchmark 自身存在三类标注错误：(1) 引用仓库中不存在的 tag。curl 项目有 37 个 GT tag（curl-4_x, curl-5_x 等早期版本）在公开仓库中不存在，任何工具都无法分析；(2) 已修复版本被标记为受影响。wireshark CVE-2021-4185（72 个版本）和 FFmpeg CVE-2020-22054（196 个版本）已包含修复代码但 GT 标记为受影响；(3) 标注一致性问题，论文自述 11.9% 的标注存在不一致（Cohen's Kappa 0.83）。我们构建了修正版 dataset（Dataset_amended.json），基于代码证据进行可复现的修正。
+
+### 已知遗留问题
+
+以下问题已识别但暂未修复，不影响整体方法的有效性：
+
+1. **Add-only patch + 文件重命名**：当 fix 只新增代码（无 deleted lines），且文件被重命名过（如 FFmpeg 的 `ffmpeg.c` → `fftools/ffmpeg.c`），跨文件检测缺少搜索特征（无 deleted lines 可 grep），导致旧路径版本漏报。影响 FFmpeg CVE-2020-22042 等少量 CVE。可通过在 Layer 1 中对文件名做路径回退搜索解决。
+
+2. **openjpeg 早期版本代码差异**：openjpeg 1.x 和 2.x 的代码结构差异极大，函数名、变量名、文件组织完全不同。跨文件检测的 token 搜索无法匹配。影响 CVE-2020-27845 等。属于代码重写场景的边界 case。
 
 ```
 v1.0 --- v1.1 --- v1.2 --- v2.0 --- v2.1 --- v2.2 --- v3.0 --- v3.1
