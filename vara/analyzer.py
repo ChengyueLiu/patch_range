@@ -12,8 +12,9 @@ from typing import List, Dict
 
 from vara.repo import GitRepo
 from vara.patch_parser import parse_commits
-from vara.matcher import find_affected_versions
+from vara.matcher import find_affected_versions, is_version_patched
 from vara.tracer import trace_affected_versions
+from vara.tag_filter import filter_release_tags
 
 # Global repo cache: reuse GitRepo instances across CVEs for the same repo.
 # This preserves the tags_containing cache across calls.
@@ -43,14 +44,25 @@ def analyze(repo_path: str, commits: List[str]) -> List[str]:
     if not patch.file_patches:
         return []
 
-    tags = repo.get_all_tags()
+    tags = filter_release_tags(repo.get_all_tags())
+    tag_set = set(tags)
 
     # Channel 1: Matching
     match_results = find_affected_versions(repo, patch, tags)
+    match_lookup = {r.version: r for r in match_results}
     matched = set(r.version for r in match_results if r.is_affected)
 
-    # Channel 2: Tracing
-    traced = set(trace_affected_versions(repo, patch))
+    # Channel 2: Tracing (filter its output to release tags only)
+    traced = set(trace_affected_versions(repo, patch)) & tag_set
 
-    # Union
-    return sorted(matched | traced)
+    # Cross-validate: tracing-only versions that matching says are patched → remove
+    tracing_only = traced - matched
+    verified_tracing = set()
+    for tag in tracing_only:
+        result = match_lookup.get(tag)
+        if result and is_version_patched(result):
+            continue  # matching confirms this version is already fixed
+        verified_tracing.add(tag)
+
+    # Union of matching + verified tracing
+    return sorted(matched | verified_tracing)

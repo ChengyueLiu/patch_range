@@ -8,7 +8,7 @@ def main():
         dataset_path="evaluation/benchmark/Dataset.json",
         repos_dir="data/repos",
         output_dir="data/reports",
-        max_cves=0,  # 0 = no limit
+        max_cves=100,  # 0 = no limit
         num_workers=10,  # parallel workers, 1 = sequential
         # repos=None,  # None = all repos
         # repos=["FFmpeg", "ImageMagick", "curl", "httpd", "linux", "openjpeg", "openssl", "qemu", "wireshark"],

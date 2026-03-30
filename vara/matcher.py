@@ -100,15 +100,16 @@ def match_file_against_version(
     deleted_lines = file_patch.all_deleted_lines
     added_lines = file_patch.all_added_lines
 
-    # File doesn't exist in this version at all → assume affected for recall
+    # File doesn't exist in this version → no evidence of vulnerability
+    # Tracing channel handles cases where file path changed
     if content is None:
         return FileMatchResult(
             file_path=file_path,
             found=False,
             vulnerable_lines_matched=0,
-            vulnerable_lines_total=len(deleted_lines),
-            fix_lines_absent=len(added_lines),
-            fix_lines_total=len(added_lines),
+            vulnerable_lines_total=0,
+            fix_lines_absent=0,
+            fix_lines_total=0,
         )
 
     content_lines = content.splitlines()
@@ -163,9 +164,6 @@ def _count_fix_absent(
 def is_version_affected(file_results: List[FileMatchResult]) -> bool:
     """Decide if a version is affected based on file match results."""
     for fr in file_results:
-        # File not found but was expected → assume affected
-        if not fr.found and (fr.vulnerable_lines_total > 0 or fr.fix_lines_total > 0):
-            return True
         if not fr.found:
             continue
         if fr.vulnerable_lines_matched > 0:
@@ -173,6 +171,25 @@ def is_version_affected(file_results: List[FileMatchResult]) -> bool:
         if fr.fix_lines_absent > 0:
             return True
     return False
+
+
+def is_version_patched(result: VersionResult) -> bool:
+    """Check if a version is clearly already patched.
+
+    A version is considered patched if for ALL found files:
+    - No vulnerable (deleted) lines are present
+    - All fix (added) lines are present
+    """
+    has_any_found = False
+    for fr in result.file_results:
+        if not fr.found:
+            continue
+        has_any_found = True
+        if fr.vulnerable_lines_matched > 0:
+            return False  # still has vulnerable code
+        if fr.fix_lines_absent > 0:
+            return False  # fix not fully applied
+    return has_any_found  # only patched if we actually checked some files
 
 
 def match_version(
