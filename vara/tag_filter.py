@@ -37,6 +37,8 @@ _CI_PATTERNS = [
     r'^curl-.*-pre',
     # OpenSSL-engine tags
     r'^openssl-engine-',
+    # Internal test tags (FIPS_TEST_*, etc)
+    r'^fips[-_]test',
 ]
 
 # Case-sensitive patterns (need exact case matching)
