@@ -39,6 +39,12 @@ _CI_PATTERNS = [
     r'^openssl-engine-',
     # Internal test tags (FIPS_TEST_*, etc)
     r'^fips[-_]test',
+    # OpenSSL internal tags
+    r'^levitte',
+    r'^rsaref',
+    r'^ulf_',
+    # RC/pre-release versions that slipped through (e.g. 2.2.1rc0)
+    r'^\d+\.\d+\.\d*rc\d*$',
 ]
 
 # Case-sensitive patterns (need exact case matching)
