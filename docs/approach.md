@@ -121,9 +121,28 @@ v1.0 --- v1.1 --- v1.2 --- v2.0 --- v2.1 --- v2.2 --- v3.0 --- v3.1
 
 **类型 4：唯一的 meaningful deleted line 是通用代码**。例如 qemu CVE-2020-1711 只有一条 meaningful deleted line `uint64_t lba;`，这个变量声明在 iscsi 模块中到处存在。**处理方式：当 patch 只有极少量（1-2 条）meaningful deleted lines 时，标记为低置信度**，不作为确定性排除依据，交给 LLM。
 
-#### 第二步：LLM 精确判断
+**实验结果（96 CVE，8 个 repo）**：
 
-经过第一步缩小范围后，剩余的少量 unclear states（通常几个到十几个）由 LLM 判断：给 LLM 看相邻 states 之间的代码 diff 和 patch 信息，判断该变更是否引入了漏洞。不确定的默认保留，保证不漏。
+采用上下文定位匹配（类型 1 解决方案）+ tag filter 修复（类型 3）后：
+
+| 分类 | 比例 | 含义 |
+|------|------|------|
+| EXACT | 58.3% | 精确找到 GT 起点 |
+| SAFE | 33.3% | 找到的点在 GT 起点之后（偏保守，不会误包含） |
+| EARLY | 8.3% | 找到的点在 GT 起点之前（找过头，大部分确认为 GT 标注错误） |
+
+91.7% 的 case 不会产生误包含。SAFE 的平均距离约 69 个版本，需要 LLM 从找到的点往前搜索。
+
+SAFE 距离分布：5-20 版本（7 个）、20-50（9 个）、50-100（9 个）、100+（5 个）。大距离主要发生在代码演化剧烈的长周期项目（FFmpeg、qemu）。
+
+#### 第二步：LLM 精确判断（待实现）
+
+经过第一步，需要 LLM 处理的 case 分三类：
+1. **SAFE case**（32 个）：从程序分析找到的 VULN 点往前搜索，找到真正起点。每个 CVE 需分析几个到几十个 states。
+2. **NoVuln case**（14 个）：add-only patch 或极少 meaningful deleted lines，完全靠 LLM 在所有 states 中定位。
+3. **EARLY case**（8 个，其中约 5 个为 GT 错误）：需要 LLM 验证是否确实是 GT 标注问题。
+
+LLM 判断方式：给 LLM 看相邻 states 之间的代码 diff 和 patch 信息，判断该变更是否引入了漏洞。不确定的默认保留，保证不漏。
 
 ## 总结
 
