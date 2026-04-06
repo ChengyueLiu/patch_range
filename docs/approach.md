@@ -152,13 +152,41 @@ EARLY 大距离（<-10 版本，找得太早）分两类：
 1. **GT 标注不精确**：漏洞代码实际上比 GT 标注的更早就存在。例如 CVE-2023-38039（md=19, dist=-108），代码在 curl-7_20_0 和 GT 起点 curl-7_84_0 中完全一样。
 2. **非 release tag 漏网**：如 OpenSSL 的 `OpenSSL_0_9_8-post-auto-reformat` 等内部 tag。
 
-**结论：程序分析的极限**。大距离问题的根因是代码演化和信号不足，这是行级文本匹配的天然局限。程序分析能独立解决 176 个 CVE（42.8%），剩余 227 个需要 LLM 的语义理解能力。
+**结论：程序分析的极限**。大距离问题的根因是代码演化和信号不足，这是行级文本匹配的天然局限。程序分析能独立解决 176 个 CVE（42.8%），剩余 227 个需要进一步分析。
 
-#### 第二步：LLM 精确判断（待实现）
+##### 全量根因分析（411 CVE，14 个深度代码分析 + 全量程序化分类）
 
-##### 对程序分析失效原因的深度代码分析
+**SAFE 96 个（找到 VULN 但晚于 GT 起点）的根因分布**：
 
-通过对 14 个 CVE 的逐行代码对比，识别出程序分析无法处理的 5 种语义模式：
+| 根因 | 数量 | 平均距离 | 含义 | 处理方式 |
+|------|------|---------|------|---------|
+| del_absent | 40 | 80 | deleted lines 在 GT 版本中完全不存在，代码被重写 | 需要 LLM |
+| file_not_found | 20 | 53 | 文件在 GT 版本中不存在（跨文件迁移遗漏） | 需要 LLM |
+| del_partial | 17 | 67 | 部分 deleted lines 存在，部分不存在，代码部分重写 | 需要 LLM |
+| del_in_file+no_context | 13 | 79 | deleted lines 在文件中存在但上下文匹配不上 | 可优化程序分析 |
+| del_in_file+context_found | 6 | 38 | deleted lines 和上下文都在，但不在 region 内 | **放大 region_size 即可修复** |
+
+**EARLY 38 个（找到 VULN 但早于 GT 起点）的根因分布**：
+
+| 根因 | 数量 | 含义 |
+|------|------|------|
+| both_match_diff_code | 29 | deleted lines 在 EARLY 和 GT 版本中都匹配到，**高度疑似 GT 标注不精确** |
+| unknown | 9 | 需要逐个人工核查 |
+
+**no_context_match 28 个（有 meaningful deleted lines 但分类为 NoVuln）的根因分布**：
+
+| 根因 | 数量 | 含义 | 处理方式 |
+|------|------|------|---------|
+| context_found_but_del_not_in_region | 12 | 上下文定位成功但 region 太小 | **放大 region_size 即可修复** |
+| del_exists_globally_but_context_missing | 8 | deleted lines 存在但上下文完全不同 | 可优化/需要 LLM |
+| file_not_found | 5 | 文件不存在 | 跨文件追踪改进 |
+| del_not_found_anywhere | 3 | deleted lines 完全不存在 | 需要 LLM |
+
+**可直接改进的**：6 + 12 = 18 个 CVE，放大 region_size 参数即可修复，不需要 LLM。
+
+**GT 标注问题**：29 个 EARLY 案例高度疑似 GT 标注不精确（漏洞实际存在于更早版本）。这些需要逐个验证。
+
+##### 程序分析失效的 5 种语义模式（基于 14 个 CVE 的深度代码对比）
 
 **模式 1：缺失防御型漏洞（对应 NoVuln，93 个 CVE）**
 
