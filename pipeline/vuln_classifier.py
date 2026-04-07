@@ -64,7 +64,7 @@ def _find_context_position(content_lines: List[str], context_lines: List[str]) -
 def classify_file_version(
     content: str,
     file_patch: FilePatch,
-    region_size: int = 20,
+    region_size: int = 50,
 ) -> Tuple[str, int, int]:
     """Classify a version for one file using context-aware matching.
 
