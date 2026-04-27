@@ -12,6 +12,9 @@ class HunkChange:
     deleted_lines: List[str] = field(default_factory=list)
     added_lines: List[str] = field(default_factory=list)
     context_lines: List[str] = field(default_factory=list)
+    # Text after the second `@@` on the hunk header line (typically a function
+    # signature like `static int decode_frame(...)`). Empty string if absent.
+    header_context: str = ""
 
 
 @dataclass

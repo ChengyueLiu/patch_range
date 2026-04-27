@@ -25,3 +25,7 @@ data/reports/
 
 # Git operation cache
 data/cache/
+
+# Secrets
+.env
+

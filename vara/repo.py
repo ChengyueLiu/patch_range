@@ -35,8 +35,15 @@ class GitRepo:
         return result.stdout.decode("utf-8", errors="replace")
 
     def get_all_tags(self) -> List[str]:
-        """Return all tags in the repository."""
-        output = self._run(["tag", "--list"])
+        """Return all tags in the repository, sorted by commit date (oldest first).
+
+        We sort by commit date rather than alphabetically because alphabetical
+        sorting fails for non-standard tag names (e.g. ssv0.9.0 from 2025 would
+        sort before v1.0.0 from 2013). Using --sort=creatordate gives true
+        chronological order.
+        """
+        output = self._run(["for-each-ref", "--format=%(refname:short)",
+                           "--sort=creatordate", "refs/tags"])
         return [t.strip() for t in output.splitlines() if t.strip()]
 
     def get_diff(self, commit_hash: str) -> str:
@@ -186,6 +193,32 @@ class GitRepo:
         self._tags_containing_cache[commit] = result
         self._disk_cache_dirty = True
         return result
+
+    def git_grep(self, tag: str, pattern: str, max_results: int = 20) -> List[tuple]:
+        """Search for a literal pattern in the tree of `tag`.
+
+        Returns a list of (file_path, line_number) tuples.
+        """
+        try:
+            out = self._run(
+                ["grep", "-n", "-F", "--", pattern, tag],
+                check=True,
+            )
+        except subprocess.CalledProcessError:
+            return []
+        results: List[tuple] = []
+        for line in out.splitlines():
+            # Format: <tag>:<path>:<lineno>:<content>
+            parts = line.split(":", 3)
+            if len(parts) >= 3:
+                _, path, lineno = parts[0], parts[1], parts[2]
+                try:
+                    results.append((path, int(lineno)))
+                except ValueError:
+                    pass
+            if len(results) >= max_results:
+                break
+        return results
 
     def flush_cache(self):
         """Write cache to disk if there are new entries."""

@@ -13,6 +13,7 @@ import re
 from typing import List, Optional, Tuple, Dict
 
 from vara.interface import PatchInfo, FilePatch, HunkChange
+from vara.repo import GitRepo
 from pipeline.line_filter import is_meaningful_line
 
 
@@ -121,11 +122,17 @@ def classify_file_version(
 def classify_version(
     file_contents: Dict[str, Optional[str]],
     patch: PatchInfo,
+    repo: Optional[GitRepo] = None,
+    tag: Optional[str] = None,
 ) -> Tuple[str, int]:
     """Classify a version across all patched files.
 
     Returns (classification, total_matched).
     VULN if ANY file shows reliable context-aware vulnerability indicators.
+
+    If `repo` and `tag` are provided, missing files trigger a Phase 1.5 path
+    resolution attempt — handles the case where the patched file was renamed
+    or moved between the GT version and the fix.
     """
     total_matched = 0
     for fp in patch.file_patches:
@@ -133,6 +140,14 @@ def classify_version(
         if not path:
             continue
         content = file_contents.get(path)
+
+        # Phase 1.5: file missing at original path → try to resolve
+        if content is None and repo is not None and tag is not None:
+            from pipeline.path_resolver import resolve_path
+            rp = resolve_path(repo, fp, tag)
+            if rp.path:
+                content = repo.find_file_at_version(tag, rp.path)
+
         if content is None:
             continue
         classification, matched, _ = classify_file_version(content, fp)

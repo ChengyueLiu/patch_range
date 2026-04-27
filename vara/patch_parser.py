@@ -2,11 +2,37 @@
 
 from __future__ import annotations
 
+import os
 import re
 from typing import List
 
 from vara.interface import PatchInfo, FilePatch, HunkChange
 from vara.repo import GitRepo
+
+
+# Non-source paths that occasionally appear in CVE-fixing patches but carry no
+# vulnerability signal: documentation, changelogs, release-notes, build configs.
+# Filtering these at parse time prevents them from polluting every downstream
+# stage (Layer 1 introduction tracing, vuln_classifier, LLM evidence).
+_NON_SOURCE_DIR_PARTS = ("docs", "doc", "changes-entries", "release-notes", "manual")
+_NON_SOURCE_BASENAMES = {"CHANGES", "NEWS", "AUTHORS", "TODO", "INSTALL", "README", "COPYING", "LICENSE"}
+_NON_SOURCE_EXTS = {".md", ".txt", ".html", ".rst", ".d", ".pod"}
+
+
+def is_source_path(path: str) -> bool:
+    """True if `path` looks like an actual source/header file."""
+    if not path:
+        return False
+    parts = path.split("/")
+    if any(p in _NON_SOURCE_DIR_PARTS for p in parts[:-1]):
+        return False
+    base = parts[-1]
+    if base in _NON_SOURCE_BASENAMES:
+        return False
+    ext = os.path.splitext(base)[1].lower()
+    if ext in _NON_SOURCE_EXTS:
+        return False
+    return True
 
 
 def normalize_line(line: str) -> str:
@@ -48,6 +74,10 @@ def parse_diff(diff_text: str) -> List[FilePatch]:
             if current_hunk and (current_hunk.deleted_lines or current_hunk.added_lines):
                 current_file.hunks.append(current_hunk)
             current_hunk = HunkChange()
+            # Capture function-context after the second `@@`
+            m = re.match(r"^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@ ?(.*)$", line)
+            if m:
+                current_hunk.header_context = m.group(1).strip()
         elif current_hunk is not None:
             if line.startswith("-"):
                 raw = line[1:]
@@ -69,6 +99,12 @@ def parse_diff(diff_text: str) -> List[FilePatch]:
         if current_hunk and (current_hunk.deleted_lines or current_hunk.added_lines):
             current_file.hunks.append(current_hunk)
         file_patches.append(current_file)
+
+    # Drop non-source patches (docs, changelogs) — they carry no vuln signal
+    file_patches = [
+        fp for fp in file_patches
+        if is_source_path(fp.old_path or fp.new_path or "")
+    ]
 
     return file_patches
 

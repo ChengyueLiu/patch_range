@@ -52,6 +52,35 @@ def process_cve(args):
     file_paths = [fp.old_path or fp.new_path for fp in patch.file_patches if (fp.old_path or fp.new_path)]
     br = repo.batch_get_files([(t, p) for t in l1 for p in file_paths])
 
+    # Phase 1.5: pre-resolve any missing file paths (once per file, not per tag)
+    from pipeline.path_resolver import resolve_path
+    resolved = {}  # original_path -> resolved_path
+    for fp in patch.file_patches:
+        path = fp.old_path or fp.new_path
+        if not path:
+            continue
+        # Check if file is missing at any candidate tag
+        if any(br.get((t, path)) is None for t in list(l1)[:3]):
+            # Try to resolve using one of the tags where it's missing
+            for t in l1:
+                if br.get((t, path)) is None:
+                    rp = resolve_path(repo, fp, t)
+                    if rp.path and rp.path != path:
+                        resolved[path] = rp.path
+                    break
+
+    # If we found alternative paths, batch-read them too
+    if resolved:
+        alt_requests = [(t, rp) for t in l1 for _, rp in resolved.items()]
+        alt_br = repo.batch_get_files(alt_requests)
+        for (tag, alt_path), content in alt_br.items():
+            # Find the original path that mapped to this alt_path
+            for orig, alt in resolved.items():
+                if alt == alt_path:
+                    if br.get((tag, orig)) is None and content is not None:
+                        br[(tag, orig)] = content
+                    break
+
     vuln_tags = []
     for tag in l1:
         fc = {p: br.get((tag, p)) for p in file_paths}
