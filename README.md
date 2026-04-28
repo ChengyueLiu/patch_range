@@ -26,7 +26,8 @@ are affected. Two-phase pipeline: high-recall candidate range first
 │   └── analysis/             Exploratory analysis outputs (gitignored)
 │
 ├── analysis/                 Exploratory analysis scripts (one-off tools)
-├── docs/                     Methodology docs + reference papers
+├── docs/                     Methodology + case studies (markdown)
+├── reference/                External reference materials (e.g. survey paper PDF)
 │
 ├── run_program.py            ENTRY: run program-only pipeline (no LLM)
 ├── run_llm.py                ENTRY: run with LLM phase 2 step 2
