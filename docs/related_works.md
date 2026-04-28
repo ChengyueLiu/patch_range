@@ -38,28 +38,30 @@
 
 ## 三、按方法 paradigm 分类 + 关键差异表
 
-| 工具 | 年份 | venue | 路线 | 核心代表性思路 | 用了哪些 feature 维度 |
-|---|---|---|---|---|---|
-| SZZ 原文 | 2005 | MSR | Tracing 奠基 | git annotate 回溯 deleted lines | 存在（deleted lines） |
-| ReDeBug | 2012 | S&P | Matching 奠基 | token n-gram + hash 匹配 | 存在 |
-| VCCFinder | 2015 | CCS | Tracing | SVM 分类 commit metadata | 存在（commit 特征）|
-| VUDDY | 2017 | S&P | Matching | 函数级 hash + abstraction | 存在（function hash） |
-| MVP | 2020 | USENIX | Matching | 程序切片抽 vuln+patch signature | 存在 + 缺失 |
-| MOVERY | 2022 | USENIX | Matching | "最早的"vuln function + core lines | 存在 + 缺失 |
-| V-SZZ | 2022 | ICSE | Tracing | 追溯**最早**改 vuln line 的 commit | 存在（位置感知） |
-| Lifetime | 2022 | USENIX | Tracing 实证 | 估计 vuln 在代码中存活时间 | 存在 + 启发式 |
-| AFV | 2022 | ASE | "Vulnerability-centric" | 抽 vulnerability **logic**（PHP）| 语义（最接近我们）|
-| V1SCAN | 2023 | USENIX | Matching | 代码分类 + version-based hybrid | 存在 + 上下文 |
-| Vision | 2024 | ASE | Matching | 加权 IPDG + 处理 add-only | 存在 + 缺失 + 部分语义 |
-| SEM-SZZ | 2024 | TSE | Tracing | 程序切片 + 数据/控制流，针对 add-only | 缺失 + 语义 |
-| VERCATION | 2024 | arXiv | Tracing+LLM | LLM (Few-shot+CoT) refine 特征 + AST clone | 存在 + 语义 |
-| FIRE | 2024 | USENIX | Matching | Multi-stage filtering + taint differential | 存在 + 缺失 + 语义 |
-| He et al. | 2024 | TDSC | 混合 | Patches + developer logs + version tree | 多信号融合（最像我们）|
-| Vul4Java | 2024 | ASENS | Matching (Java) | Two-stage + SACG | 函数 + 调用图 |
-| LLM4SZZ | 2025 | ISSTA | Tracing+LLM | Context-enhanced + rank-based LLM 选 BIC | 存在 + LLM 评估 |
-| **Study** | **2025** | **arXiv** | **基准** | **1128 CVE benchmark + 12 baseline 评估** | **—** |
-| AgentSZZ | 2026 | arXiv | Tracing+LLM Agent | ReAct loop + 5 git tools + domain knowledge | 存在 + agent 探索 |
-| SZZ-Agent | 2026 | arXiv | Tracing+LLM Agent | 2 阶段（SZZ + binary search 全 file 历史）| 存在 + 缺失 + agent 探索 |
+⚠️ 备注列标记了**写论文时需要警惕的点**：与我们工作可能重叠或必须明确区分的工作。
+
+| 工具 | 年份 | venue | 路线 | 核心代表性思路 | 用了哪些 feature 维度 | ⚠️ 备注 |
+|---|---|---|---|---|---|---|
+| SZZ 原文 | 2005 | MSR | Tracing 奠基 | git annotate 回溯 deleted lines | 存在（deleted lines） | — |
+| ReDeBug | 2012 | S&P | Matching 奠基 | token n-gram + hash 匹配 | 存在 | — |
+| VCCFinder | 2015 | CCS | Tracing | SVM 分类 commit metadata | 存在（commit 特征）| — |
+| VUDDY | 2017 | S&P | Matching | 函数级 hash + abstraction | 存在（function hash） | — |
+| MVP | 2020 | USENIX | Matching | 程序切片抽 vuln+patch signature | 存在 + 缺失 | — |
+| MOVERY | 2022 | USENIX | Matching | "最早的"vuln function + core lines | 存在 + 缺失 | — |
+| V-SZZ | 2022 | ICSE | Tracing | 追溯**最早**改 vuln line 的 commit | 存在（位置感知） | — |
+| Lifetime | 2022 | USENIX | Tracing 实证 | 估计 vuln 在代码中存活时间 | 存在 + 启发式 | — |
+| **AFV** | **2022** | **ASE** | **"Vulnerability-centric"** | **抽 vulnerability logic（PHP）** | **语义（最接近我们）** | ⚠️ **已讲过"patch assumption 是问题"——novelty 必须明确区分**：他们针对 PHP web，方法是 PHP-specific 静态分析；我们是通用 C/C++ 框架，把 4 维度系统化 |
+| V1SCAN | 2023 | USENIX | Matching | 代码分类 + version-based hybrid | 存在 + 上下文 | — |
+| Vision | 2024 | ASE | Matching | 加权 IPDG + 处理 add-only | 存在 + 缺失 + 部分语义 | — |
+| SEM-SZZ | 2024 | TSE | Tracing | 程序切片 + 数据/控制流，针对 add-only | 缺失 + 语义 | — |
+| VERCATION | 2024 | arXiv | Tracing+LLM | LLM (Few-shot+CoT) refine 特征 + AST clone | 存在 + 语义 | — |
+| **FIRE** | **2024** | **USENIX** | **Matching** | **Multi-stage filtering + taint differential** | **存在 + 缺失 + 语义** | ⚠️ **它的 "multi-stage" ≠ 我们的 "multi-form"**——它是同一种特征的多阶段过滤，我们是不同种特征的多形式融合。论文必须明确区分，否则审稿人会问"FIRE 不也是多阶段吗" |
+| **He et al.** | **2024** | **TDSC** | **混合** | **Patches + developer logs + version tree** | **多信号融合（最像我们）** | ⚠️⚠️ **跟我们任务最像**。必须讲清"我们是 framework，他们是 ad-hoc 工程"——他们已在工程层面集成多信号但作为 engineering tricks；我们是 principled 4 维度框架，He et al. 是我们框架的不完整 instance |
+| **Vul4Java** | **2024** | **ASENS** | **Matching (Java)** | **Two-stage + SACG** | **函数 + 调用图** | ⚠️ **下错的 PDF**：study 里的 Verjava (Sun et al, ICSME 2022) 不是这一篇。两者标题相似（都是 "Java 两阶段"）。后面有空补回真正的 Verjava |
+| LLM4SZZ | 2025 | ISSTA | Tracing+LLM | Context-enhanced + rank-based LLM 选 BIC | 存在 + LLM 评估 | — |
+| **Study** | **2025** | **arXiv** | **基准** | **1128 CVE benchmark + 12 baseline 评估** | **—** | 我们的 motivation 来源；benchmark 锚点 |
+| **AgentSZZ** | **2026** | **arXiv** | **Tracing+LLM Agent** | **ReAct loop + 5 git tools + domain knowledge** | **存在 + agent 探索** | ⚠️⚠️ **抢了 "LLM agent 做 vuln tracing" 这个角度**。但他们输出 BIC commit 不是 V_aff 版本集合；我们直接做 V_aff，省去 commit→version 映射步骤。差异化点必须在 framework 层面而非"也用 agent" |
+| **SZZ-Agent** | **2026** | **arXiv** | **Tracing+LLM Agent** | **2 阶段（SZZ + binary search 全 file 历史）** | **存在 + 缺失 + agent 探索** | ⚠️⚠️ Stage 2 binary search **正好解决我们说的 ADD-only 问题**——multi-form 在 ADD-only 维度被部分预占。同 AgentSZZ：他们输出 BIC commit 不是 V_aff |
 
 ---
 
