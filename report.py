@@ -4,22 +4,21 @@ Reads results.jsonl from a data/runs/<name>/ directory and the GT from
 benchmark/Dataset_amended.json, then prints tag-level metrics per repo
 and aggregate.
 
-Usage:
-    python report.py data/runs/program_v1               # F1 of one run
-    python report.py --latest                            # latest run
-    python report.py data/runs/v1 --show errors          # list EARLY/SAFE
-    python report.py --compare data/runs/a data/runs/b   # diff two runs
+Two stages can be reported (set STAGE in main()):
+  - "layer1"     — predict every Layer-1 candidate as VULN (high-recall ceiling)
+  - "classifier" — use our_earliest from the deterministic classifier (current default)
+  - "both"       — print both, side by side
+
+Edit the config block in main() to point at a run directory and choose stages.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 from tqdm import tqdm
 
@@ -33,42 +32,28 @@ RUNS_DIR = "data/runs"
 
 
 # ---------------------------------------------------------------------------
-# Tag-set reconstruction (per-CVE)
+# Per-CVE metrics
 # ---------------------------------------------------------------------------
 
-def _our_set_from_record(rec, dataset, candidates_cache, tag_order_cache) -> set:
-    """Reconstruct the set of tags we predicted as VULN for this CVE.
+def _classify_case(our_set, gt_in, tag_order):
+    """Re-derive case label (EXACT/SAFE/EARLY/NO_VULN/NO_GT) from a predicted set.
 
-    Logic: take all candidate tags whose chronological order is >= our_earliest.
-    NO_VULN/NO_GT records contribute an empty set.
+    This is per-stage: the case depends on what tags the stage predicted as VULN.
     """
-    cve = rec["cve"]
-    our_e = rec.get("our_earliest")
-    if not our_e:
-        return set()
-
-    repo_name = rec["repo"]
-    if repo_name not in tag_order_cache:
-        repo = GitRepo(f"data/repos/{repo_name}")
-        tags = filter_release_tags(repo.get_all_tags())
-        tag_order_cache[repo_name] = {t: i for i, t in enumerate(tags)}
-
-    if cve not in candidates_cache:
-        entry = dataset[cve]
-        repo = GitRepo(f"data/repos/{repo_name}")
-        commits = [c for g in entry["fixing_commits"] for c in g]
-        patch = parse_commits(repo, commits)
-        release_set = set(filter_release_tags(repo.get_all_tags()))
-        candidates_cache[cve] = layer1(repo, patch, release_set)
-
-    candidates = candidates_cache[cve]
-    tag_order = tag_order_cache[repo_name]
-    our_idx = tag_order.get(our_e, 10**9)
-    return {t for t in candidates if tag_order.get(t, 10**9) >= our_idx}
+    if not our_set:
+        return "NO_VULN", None
+    if not gt_in:
+        return "NO_GT", None
+    pred_e = min(our_set, key=lambda t: tag_order.get(t, 10**9))
+    gt_e = min(gt_in, key=lambda t: tag_order.get(t, 10**9))
+    dist = tag_order.get(pred_e, 10**9) - tag_order.get(gt_e, 10**9)
+    if dist == 0:
+        return "EXACT", 0
+    return ("SAFE", dist) if dist > 0 else ("EARLY", dist)
 
 
 def _per_cve_metrics(args):
-    rec, dataset = args
+    rec, dataset, stage = args
     cve = rec["cve"]
     if cve not in dataset:
         return None
@@ -87,17 +72,24 @@ def _per_cve_metrics(args):
         if not gt:
             return None
 
-        our_e = rec.get("our_earliest")
-        if our_e and our_e != "-":
-            our_idx = tag_order.get(our_e, 10**9)
-            our_set = {t for t in candidates if tag_order.get(t, 10**9) >= our_idx}
+        if stage == "layer1":
+            # All Layer-1 candidates predicted as VULN — the high-recall ceiling.
+            our_set = set(candidates)
+        elif stage == "classifier":
+            our_e = rec.get("our_earliest")
+            if our_e and our_e != "-":
+                our_idx = tag_order.get(our_e, 10**9)
+                our_set = {t for t in candidates if tag_order.get(t, 10**9) >= our_idx}
+            else:
+                our_set = set()
         else:
-            our_set = set()
+            raise ValueError(f"Unknown stage: {stage}")
 
+        case, dist = _classify_case(our_set, gt, tag_order)
         tp = len(our_set & gt)
         fp = len(our_set - gt)
         fn = len(gt - our_set)
-        return (cve, entry["repo"], rec.get("case", "?"), rec.get("dist", None), tp, fp, fn)
+        return (cve, entry["repo"], case, dist, tp, fp, fn)
     except Exception:
         return None
 
@@ -184,29 +176,29 @@ def _latest_run() -> Path:
 # CLI
 # ---------------------------------------------------------------------------
 
-def cmd_report(run_dir: Path, show_errors: bool, workers: int):
-    print(f"Run: {run_dir}")
+def cmd_report(run_dir: Path, stage: str, show_errors: bool, workers: int):
+    print(f"\nRun: {run_dir}   Stage: {stage}")
     results = _load_results(run_dir)
     dataset = json.load(open(DATASET_PATH))
 
     per_cve = []
-    args_list = [(r, dataset) for r in results]
+    args_list = [(r, dataset, stage) for r in results]
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futures = [ex.submit(_per_cve_metrics, a) for a in args_list]
-        for fut in tqdm(as_completed(futures), total=len(futures), desc="metrics"):
+        for fut in tqdm(as_completed(futures), total=len(futures), desc=f"metrics[{stage}]"):
             r = fut.result()
             if r:
                 per_cve.append(r)
 
-    metrics = _print_metrics(per_cve, title="Tag-level metrics")
+    metrics = _print_metrics(per_cve, title=f"Tag-level metrics — stage={stage}")
     _print_case_distribution(per_cve)
     if show_errors:
         _print_errors(per_cve)
 
-    # Persist metrics.json
-    with open(run_dir / "metrics.json", "w") as f:
+    out_path = run_dir / f"metrics_{stage}.json"
+    with open(out_path, "w") as f:
         json.dump(metrics, f, indent=2)
-    print(f"\nSaved: {run_dir / 'metrics.json'}")
+    print(f"\nSaved: {out_path}")
 
 
 def cmd_compare(run_a: Path, run_b: Path):
@@ -227,27 +219,27 @@ def cmd_compare(run_a: Path, run_b: Path):
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("run_dir", nargs="?", help="Run directory under data/runs/")
-    ap.add_argument("--latest", action="store_true", help="Use the latest run")
-    ap.add_argument("--show", default="", help="Show extra info: 'errors'")
-    ap.add_argument("--workers", type=int, default=8)
-    ap.add_argument("--compare", nargs=2, metavar=("A", "B"), help="Compare two run dirs")
-    args = ap.parse_args()
+    # ============================================================
+    # Edit this block to control what gets reported.
+    # ============================================================
+    RUN_DIR = "latest"          # "latest" -> most recent run, or e.g. "data/runs/program_..."
+    STAGE = "both"              # "layer1" | "classifier" | "both"
+    SHOW_ERRORS = False         # show top-N EARLY/SAFE example tables
+    WORKERS = 8
+    # For comparison mode (compares two runs' classifier output), set both:
+    COMPARE_A = None            # e.g. "data/runs/run_a"
+    COMPARE_B = None            # e.g. "data/runs/run_b"
+    # ============================================================
 
-    if args.compare:
-        cmd_compare(Path(args.compare[0]), Path(args.compare[1]))
+    if COMPARE_A and COMPARE_B:
+        cmd_compare(Path(COMPARE_A), Path(COMPARE_B))
         return
 
-    if args.latest:
-        run_dir = _latest_run()
-    elif args.run_dir:
-        run_dir = Path(args.run_dir)
-    else:
-        ap.print_help()
-        sys.exit(1)
+    run_dir = _latest_run() if RUN_DIR == "latest" else Path(RUN_DIR)
 
-    cmd_report(run_dir, show_errors=("error" in args.show), workers=args.workers)
+    stages = ["layer1", "classifier"] if STAGE == "both" else [STAGE]
+    for stage in stages:
+        cmd_report(run_dir, stage=stage, show_errors=SHOW_ERRORS, workers=WORKERS)
 
 
 if __name__ == "__main__":

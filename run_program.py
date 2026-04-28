@@ -3,20 +3,16 @@
 Runs the full deterministic pipeline (no LLM) on the benchmark and saves
 per-CVE results plus a summary to data/runs/<name>/.
 
-Usage:
-    python run_program.py                       # full benchmark, auto-named
-    python run_program.py --name baseline_v2    # named run
-    python run_program.py --limit 20            # quick subset
-    python run_program.py --cve CVE-2020-12284  # single CVE (prints to stdout)
+Edit the config block at the top of main() to control what gets run.
 """
 
 from __future__ import annotations
 
-import argparse
 import datetime
 import json
+import subprocess
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
@@ -32,7 +28,6 @@ from app.runner import run_pipeline
 
 DATASET_PATH = "benchmark/Dataset_amended.json"
 RUNS_DIR = "data/runs"
-REPOS = ["FFmpeg", "ImageMagick", "curl", "httpd", "openjpeg", "openssl", "qemu", "wireshark"]
 
 
 def _make_run_dir(name=None):
@@ -40,6 +35,16 @@ def _make_run_dir(name=None):
     out = Path(RUNS_DIR) / slug
     out.mkdir(parents=True, exist_ok=True)
     return out
+
+
+def _git_head() -> str:
+    """Current code HEAD short hash (best effort) — recorded in config.json."""
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        return "?"
 
 
 def process_cve(args):
@@ -95,6 +100,11 @@ def process_cve(args):
     repo.flush_cache()
 
     gt_in = gt & release_set
+
+    # Layer 1 earliest: predict ALL candidates as VULN (the high-recall upper bound)
+    layer1_earliest = (sorted(candidates, key=lambda t: tag_order.get(t, 10**9))[0]
+                       if candidates else None)
+
     if not vuln_tags:
         case = "NO_VULN"
         our_e = None
@@ -111,6 +121,7 @@ def process_cve(args):
     rec = {
         "cve": cve_id, "repo": repo_name, "case": case,
         "our_earliest": our_e,
+        "layer1_earliest": layer1_earliest,
         "gt_earliest": (sorted(gt_in, key=lambda t: tag_order.get(t, 10**9))[0]
                         if gt_in else None),
         "candidate_count": len(candidates),
@@ -132,32 +143,62 @@ def process_cve(args):
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--cve", help="Single CVE id (prints to stdout, no run dir)")
-    ap.add_argument("--limit", type=int, default=0, help="Process only N CVEs")
-    ap.add_argument("--workers", type=int, default=12)
-    ap.add_argument("--name", default=None, help="Run directory name")
-    args = ap.parse_args()
+    # ============================================================
+    # Edit this block to control what gets run.
+    # ============================================================
+    REPOS = ["FFmpeg", "ImageMagick", "curl", "httpd",
+             "openjpeg", "openssl", "qemu", "wireshark"]
+    PER_REPO_LIMIT = 10        # 0 = no limit
+    GLOBAL_LIMIT = 0           # 0 = no limit (ignored if PER_REPO_LIMIT > 0)
+    WORKERS = 12
+    NAME = None                # None = auto timestamp ("program_YYYYmmdd_HHMMSS")
+    SINGLE_CVE = None          # if set (e.g. "CVE-2020-12284"), only run this one and print
+    # ============================================================
 
     with open(DATASET_PATH) as f:
         dataset = json.load(f)
 
-    if args.cve:
-        rec = process_cve((args.cve, dataset[args.cve]))
+    if SINGLE_CVE:
+        rec = process_cve((SINGLE_CVE, dataset[SINGLE_CVE]))
         print(json.dumps(rec, indent=2))
         return
 
     targets = [(cid, e) for cid, e in dataset.items() if e["repo"] in REPOS]
-    if args.limit:
-        targets = targets[:args.limit]
 
-    run_dir = _make_run_dir(args.name)
+    if PER_REPO_LIMIT > 0:
+        seen_per_repo: dict = {}
+        selected = []
+        for cid, e in targets:
+            r = e["repo"]
+            if seen_per_repo.get(r, 0) < PER_REPO_LIMIT:
+                selected.append((cid, e))
+                seen_per_repo[r] = seen_per_repo.get(r, 0) + 1
+        targets = selected
+    elif GLOBAL_LIMIT > 0:
+        targets = targets[:GLOBAL_LIMIT]
+
+    run_dir = _make_run_dir(NAME)
     results_path = run_dir / "results.jsonl"
+
+    config = {
+        "repos": REPOS,
+        "per_repo_limit": PER_REPO_LIMIT,
+        "global_limit": GLOBAL_LIMIT,
+        "workers": WORKERS,
+        "dataset": DATASET_PATH,
+        "code_git_head": _git_head(),
+        "n_targets": len(targets),
+        "started_at": datetime.datetime.now().isoformat(timespec="seconds"),
+    }
     with open(run_dir / "config.json", "w") as f:
-        json.dump({"limit": args.limit, "workers": args.workers}, f, indent=2)
+        json.dump(config, f, indent=2)
+
+    repo_count = len({e["repo"] for _, e in targets})
+    print(f"Run dir: {run_dir}")
+    print(f"Targets: {len(targets)} CVEs across {repo_count} repos")
 
     results = []
-    with ProcessPoolExecutor(max_workers=args.workers) as ex:
+    with ProcessPoolExecutor(max_workers=WORKERS) as ex:
         futures = {ex.submit(process_cve, t): t for t in targets}
         with open(results_path, "w") as f_out:
             for fut in tqdm(as_completed(futures), total=len(futures), desc="program"):
@@ -167,19 +208,19 @@ def main():
                 f_out.write(json.dumps(rec) + "\n")
                 results.append(rec)
 
-    # Quick summary (case-level only — full F1 is in report.py)
+    # Quick summary (case-level only — full R/P/F1 is in report.py)
     cases = Counter(r["case"] for r in results)
     measured = cases["EXACT"] + cases["SAFE"] + cases["EARLY"]
     print()
     print(f"=== Program pipeline — {len(results)} CVEs ===")
     for c in ["EXACT", "SAFE", "EARLY", "NO_VULN", "NO_GT"]:
         if cases.get(c, 0):
-            pct = f" ({cases[c]/measured*100:.1f}%)" if measured and c in {"EXACT","SAFE","EARLY"} else ""
+            pct = f" ({cases[c]/measured*100:.1f}%)" if measured and c in {"EXACT", "SAFE", "EARLY"} else ""
             print(f"  {c}: {cases[c]}{pct}")
     if measured:
         print(f"  EXACT+SAFE: {(cases['EXACT']+cases['SAFE'])/measured*100:.1f}%")
     print(f"\nResults saved to: {run_dir}")
-    print(f"  python report.py {run_dir}")
+    print(f"  Edit report.py and run it to see R/P/F1 per stage")
     sys.stdout.flush()
 
 
