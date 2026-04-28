@@ -2,7 +2,7 @@
 import json
 from collections import Counter
 
-results = [json.loads(l) for l in open('data/reports/llm_phase2.jsonl') if l.strip()]
+results = [json.loads(l) for l in open('data/runs/legacy_llm_phase2/results.jsonl') if l.strip()]
 early = [r for r in results if r.get('case') == 'EARLY']
 
 step1_caused = []  # EARLY where step1 had FP, LLM agreed it was SAFE (but we ignored)

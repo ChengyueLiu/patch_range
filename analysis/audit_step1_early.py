@@ -8,12 +8,12 @@ import json
 import hashlib
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
-from vara.repo import GitRepo
-from vara.patch_parser import parse_commits
-from vara.tag_filter import filter_release_tags
-from pipeline.core import layer1
-from pipeline.vuln_classifier import classify_version
-from pipeline.path_resolver import resolve_path
+from app.git_lib.repo import GitRepo
+from app.git_lib.patch_parser import parse_commits
+from app.git_lib.tag_filter import filter_release_tags
+from app.phase1.candidate_range import layer1
+from app.phase2.classifier import classify_version
+from app.phase1.path_resolver import resolve_path
 
 
 def _content_hash(content):
@@ -141,7 +141,7 @@ def process(args):
 
 
 def main():
-    dataset = json.load(open('evaluation/benchmark/Dataset_amended.json'))
+    dataset = json.load(open('benchmark/Dataset_amended.json'))
     repos = ['FFmpeg', 'ImageMagick', 'curl', 'httpd', 'openjpeg', 'openssl', 'qemu', 'wireshark']
     args = [(cid, e) for cid, e in dataset.items() if e.get('repo') in repos]
 
@@ -175,9 +175,9 @@ def main():
         print(f'{repo:<12} {s:>6} {d:>6} {s+d:>6}')
 
     # Save
-    with open('data/reports/step1_early_audit.json', 'w') as f:
+    with open('data/analysis/step1_early_audit.json', 'w') as f:
         json.dump(results, f, indent=2)
-    print(f"\nSaved {len(results)} records to data/reports/step1_early_audit.json")
+    print(f"\nSaved {len(results)} records to data/analysis/step1_early_audit.json")
 
 
 if __name__ == '__main__':

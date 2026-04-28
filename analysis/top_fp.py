@@ -1,10 +1,10 @@
 """Find CVEs producing the most FP."""
 import json
 from concurrent.futures import ProcessPoolExecutor
-from vara.repo import GitRepo
-from vara.patch_parser import parse_commits
-from vara.tag_filter import filter_release_tags
-from pipeline.core import layer1
+from app.git_lib.repo import GitRepo
+from app.git_lib.patch_parser import parse_commits
+from app.git_lib.tag_filter import filter_release_tags
+from app.phase1.candidate_range import layer1
 
 
 def process(args):
@@ -38,10 +38,10 @@ def process(args):
 
 
 def main():
-    dataset = json.load(open('evaluation/benchmark/Dataset_amended.json'))
+    dataset = json.load(open('benchmark/Dataset_amended.json'))
     llm = {
         r['cve']: r.get('our_earliest')
-        for r in [json.loads(l) for l in open('data/reports/llm_phase2.jsonl') if l.strip()]
+        for r in [json.loads(l) for l in open('data/runs/legacy_llm_phase2/results.jsonl') if l.strip()]
     }
     repos = ['FFmpeg', 'ImageMagick', 'curl', 'httpd', 'openjpeg', 'openssl', 'qemu', 'wireshark']
     args = [(cid, e, llm.get(cid)) for cid, e in dataset.items()

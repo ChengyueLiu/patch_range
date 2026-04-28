@@ -25,19 +25,31 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from tqdm import tqdm
 
-from vara.repo import GitRepo
-from vara.patch_parser import parse_commits
-from vara.tag_filter import filter_release_tags
-from pipeline.core import layer1
-from pipeline.vuln_classifier import classify_version
-from pipeline.line_filter import is_meaningful_line
-from pipeline.state_dedup import build_unique_states, UniqueState
-from pipeline.llm_judge import build_evidence, judge_version, _build_user_message, SYSTEM_PROMPT
-from pipeline.path_resolver import resolve_path
+from app.git_lib.repo import GitRepo
+from app.git_lib.patch_parser import parse_commits
+from app.git_lib.tag_filter import filter_release_tags
+from app.phase1.candidate_range import layer1
+from app.phase2.classifier import classify_version
+from app.utils import is_meaningful_line
+from app.phase2.state_dedup import build_unique_states, UniqueState
+from app.phase2.llm_judge import build_evidence, judge_version, _build_user_message, SYSTEM_PROMPT
+from app.phase1.path_resolver import resolve_path
 
-DATASET_PATH = "evaluation/benchmark/Dataset_amended.json"
-RESULTS_PATH = "data/reports/llm_phase2.jsonl"
+DATASET_PATH = "benchmark/Dataset_amended.json"
+RUNS_DIR = "data/runs"
 REPOS = ["FFmpeg", "ImageMagick", "curl", "httpd", "openjpeg", "openssl", "qemu", "wireshark"]
+
+
+def _make_run_dir(name: Optional[str] = None) -> Path:
+    """Create data/runs/<name>/, defaulting to llm_<timestamp>."""
+    import datetime
+    if name:
+        slug = name
+    else:
+        slug = "llm_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    out = Path(RUNS_DIR) / slug
+    out.mkdir(parents=True, exist_ok=True)
+    return out
 
 
 def _load_env(path: str = ".env") -> None:
@@ -319,6 +331,8 @@ def main():
     ap.add_argument("--cases", default="SAFE,EARLY,NOVULN,NO_VULN")
     ap.add_argument("--workers", type=int, default=8,
                     help="Concurrent LLM calls (default: 8)")
+    ap.add_argument("--name", default=None,
+                    help="Run name (default: llm_<timestamp>)")
     args = ap.parse_args()
 
     _load_env()
@@ -337,17 +351,18 @@ def main():
     else:
         targets = [(cid, e) for cid, e in dataset.items() if e["repo"] in REPOS]
 
-    # Load already-done CVEs for resumability
-    done = set()
-    if not args.cve and Path(RESULTS_PATH).exists():
-        with open(RESULTS_PATH) as f:
-            for line in f:
-                try:
-                    done.add(json.loads(line)["cve"])
-                except (json.JSONDecodeError, KeyError):
-                    pass
+    # Each invocation creates a fresh run directory — we don't overwrite
+    run_dir = _make_run_dir(args.name) if not args.cve else None
+    results_path = run_dir / "results.jsonl" if run_dir else None
+    if run_dir:
+        # Save the run config
+        with open(run_dir / "config.json", "w") as f:
+            json.dump({
+                "model": args.model, "limit": args.limit, "workers": args.workers,
+                "dry_run": args.dry_run, "cases": args.cases,
+            }, f, indent=2)
 
-    pending = [(c, e) for c, e in targets if c not in done]
+    pending = list(targets)
     if args.limit:
         pending = pending[:args.limit]
 
@@ -363,12 +378,10 @@ def main():
             if args.cve:
                 print(json.dumps(rec, indent=2))
             else:
-                Path(RESULTS_PATH).parent.mkdir(parents=True, exist_ok=True)
-                with open(RESULTS_PATH, "a") as f:
+                with open(results_path, "a") as f:
                     f.write(json.dumps(rec) + "\n")
             processed += 1
     else:
-        Path(RESULTS_PATH).parent.mkdir(parents=True, exist_ok=True)
         write_lock = Lock()
         processed = 0
 
@@ -386,14 +399,14 @@ def main():
                 if rec is None:
                     continue
                 with write_lock:
-                    with open(RESULTS_PATH, "a") as f:
+                    with open(results_path, "a") as f:
                         f.write(json.dumps(rec) + "\n")
                 processed += 1
 
     # Summary
     if not args.cve and processed > 0:
         results = []
-        with open(RESULTS_PATH) as f:
+        with open(results_path) as f:
             for line in f:
                 try:
                     results.append(json.loads(line))
@@ -411,6 +424,9 @@ def main():
                 print(f"  {c}: {cases[c]}{pct}")
         if measured:
             print(f"\n  EXACT+SAFE: {(cases.get('EXACT',0)+cases.get('SAFE',0))/measured*100:.1f}%")
+        if run_dir:
+            print(f"\nResults saved to: {run_dir}")
+            print(f"  python report.py {run_dir}")
 
     print(f"\nDone. {processed} CVEs processed.")
 

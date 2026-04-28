@@ -8,16 +8,16 @@ import json
 import sys
 from collections import Counter
 
-from vara.repo import GitRepo
-from vara.patch_parser import parse_commits
-from pipeline.path_resolver import resolve_path
-from pipeline.line_filter import is_meaningful_line
-from pipeline.vuln_classifier import classify_file_version
+from app.git_lib.repo import GitRepo
+from app.git_lib.patch_parser import parse_commits
+from app.phase1.path_resolver import resolve_path
+from app.utils import is_meaningful_line
+from app.phase2.classifier import classify_file_version
 
 
 def main():
-    analysis = json.load(open("data/reports/phase2_analysis.json"))
-    dataset = json.load(open("evaluation/benchmark/Dataset_amended.json"))
+    analysis = json.load(open("data/analysis/phase2_analysis.json"))
+    dataset = json.load(open("benchmark/Dataset_amended.json"))
 
     cases = []
     for r in analysis:
