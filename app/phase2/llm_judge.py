@@ -16,10 +16,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from vara.interface import PatchInfo, FilePatch
-from vara.repo import GitRepo
-from pipeline.agent_tools import find_function_body
-from pipeline.path_resolver import resolve_path
+from app.git_lib.interface import PatchInfo, FilePatch
+from app.git_lib.repo import GitRepo
+from app.phase2.llm_tools import find_function_body
+from app.phase1.path_resolver import resolve_path
 
 
 # ---------------------------------------------------------------------------

@@ -9,20 +9,11 @@ This addresses the main FP cause: same line appearing in different parts of the 
 
 from __future__ import annotations
 
-import re
 from typing import List, Optional, Tuple, Dict
 
-from vara.interface import PatchInfo, FilePatch, HunkChange
-from vara.repo import GitRepo
-from pipeline.line_filter import is_meaningful_line
-
-
-def normalize(line: str) -> str:
-    """Normalize a line for comparison."""
-    s = line.strip()
-    s = re.sub(r'\s+', ' ', s)
-    s = re.sub(r'\s*([*/%+\-&|^=<>!,;(){}[\]])\s*', r'\1', s)
-    return s
+from app.git_lib.interface import PatchInfo, FilePatch, HunkChange
+from app.git_lib.repo import GitRepo
+from app.utils import is_meaningful_line, normalize
 
 
 def _find_context_position(content_lines: List[str], context_lines: List[str]) -> Optional[int]:
@@ -143,7 +134,7 @@ def classify_version(
 
         # Phase 1.5: file missing at original path → try to resolve
         if content is None and repo is not None and tag is not None:
-            from pipeline.path_resolver import resolve_path
+            from app.phase1.path_resolver import resolve_path
             rp = resolve_path(repo, fp, tag)
             if rp.path:
                 content = repo.find_file_at_version(tag, rp.path)

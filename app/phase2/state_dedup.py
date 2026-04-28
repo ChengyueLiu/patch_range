@@ -5,7 +5,7 @@ Tags with the same hash have identical vulnerability status, so the LLM only
 needs to judge one representative tag per unique state.
 
 Usage:
-    from pipeline.state_dedup import build_unique_states
+    from app.phase2.state_dedup import build_unique_states
 
     states = build_unique_states(repo, patch, candidate_tags, tag_order)
     for s in states:
@@ -21,9 +21,9 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
 
-from vara.interface import PatchInfo
-from vara.repo import GitRepo
-from pipeline.vuln_classifier import normalize
+from app.git_lib.interface import PatchInfo
+from app.git_lib.repo import GitRepo
+from app.utils import normalize
 
 
 @dataclass

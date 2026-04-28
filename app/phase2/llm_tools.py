@@ -13,7 +13,7 @@ import re
 import subprocess
 from typing import List, Optional, Tuple
 
-from vara.repo import GitRepo
+from app.git_lib.repo import GitRepo
 
 
 def read_file_excerpt(

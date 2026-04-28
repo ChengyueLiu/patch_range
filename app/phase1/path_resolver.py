@@ -34,10 +34,10 @@ import subprocess
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Tuple
 
-from vara.interface import FilePatch
-from vara.repo import GitRepo
-from vara.patch_parser import is_source_path
-from pipeline.line_filter import is_meaningful_line
+from app.git_lib.interface import FilePatch
+from app.git_lib.repo import GitRepo
+from app.git_lib.patch_parser import is_source_path
+from app.utils import is_meaningful_line
 
 
 @dataclass

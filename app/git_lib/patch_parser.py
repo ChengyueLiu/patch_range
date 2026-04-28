@@ -6,8 +6,8 @@ import os
 import re
 from typing import List
 
-from vara.interface import PatchInfo, FilePatch, HunkChange
-from vara.repo import GitRepo
+from app.git_lib.interface import PatchInfo, FilePatch, HunkChange
+from app.git_lib.repo import GitRepo
 
 
 # Non-source paths that occasionally appear in CVE-fixing patches but carry no

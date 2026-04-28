@@ -21,7 +21,8 @@ venv/
 Thumbs.db
 
 # Evaluation outputs
-data/reports/
+data/runs/
+data/analysis/
 
 # Git operation cache
 data/cache/
