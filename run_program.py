@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import random
 import subprocess
 import sys
 from collections import Counter
@@ -148,8 +149,9 @@ def main():
     # ============================================================
     REPOS = ["FFmpeg", "ImageMagick", "curl", "httpd",
              "openjpeg", "openssl", "qemu", "wireshark"]
-    PER_REPO_LIMIT = 10        # 0 = no limit
+    PER_REPO_LIMIT = 0         # 0 = no limit
     GLOBAL_LIMIT = 0           # 0 = no limit (ignored if PER_REPO_LIMIT > 0)
+    SAMPLE_SEED = 42           # used when PER_REPO_LIMIT > 0 (random.sample per repo)
     WORKERS = 12
     NAME = None                # None = auto timestamp ("program_YYYYmmdd_HHMMSS")
     SINGLE_CVE = None          # if set (e.g. "CVE-2020-12284"), only run this one and print
@@ -166,13 +168,18 @@ def main():
     targets = [(cid, e) for cid, e in dataset.items() if e["repo"] in REPOS]
 
     if PER_REPO_LIMIT > 0:
-        seen_per_repo: dict = {}
-        selected = []
+        # Random sample within each repo (seeded for reproducibility)
+        by_repo: dict = {}
         for cid, e in targets:
-            r = e["repo"]
-            if seen_per_repo.get(r, 0) < PER_REPO_LIMIT:
-                selected.append((cid, e))
-                seen_per_repo[r] = seen_per_repo.get(r, 0) + 1
+            by_repo.setdefault(e["repo"], []).append((cid, e))
+        rng = random.Random(SAMPLE_SEED)
+        selected = []
+        for r in REPOS:
+            items = by_repo.get(r, [])
+            if len(items) <= PER_REPO_LIMIT:
+                selected.extend(items)
+            else:
+                selected.extend(rng.sample(items, PER_REPO_LIMIT))
         targets = selected
     elif GLOBAL_LIMIT > 0:
         targets = targets[:GLOBAL_LIMIT]
@@ -184,6 +191,7 @@ def main():
         "repos": REPOS,
         "per_repo_limit": PER_REPO_LIMIT,
         "global_limit": GLOBAL_LIMIT,
+        "sample_seed": SAMPLE_SEED if PER_REPO_LIMIT > 0 else None,
         "workers": WORKERS,
         "dataset": DATASET_PATH,
         "code_git_head": _git_head(),
